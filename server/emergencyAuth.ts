@@ -1,111 +1,50 @@
-/**
- * Ultra-simplified emergency authentication system
- * This is designed to bypass all database requirements and provide a robust
- * authentication mechanism when all else fails
- */
-
-import express, { Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { JWT_SECRET } from './jwtAuth';
+import { storage } from './storage';
+import { UserResponse } from '@shared/schema';
 
-const router = express.Router();
+const router = Router();
 
-// Special simple token generation - no database lookup required
-function generateEmergencyToken(username: string): string {
-  // Create a user object with minimal required fields
-  // Use negative ID to mark this as an emergency user
-  const user = {
-    id: -999,
-    username,
-    displayName: username,
-    emergency: true,
-    timestamp: Date.now()
-  };
-  
-  // Sign with long expiration - 7 days
-  return jwt.sign(user, JWT_SECRET, { expiresIn: '7d' });
-}
+router.get('/emergency/raw-token/:username', async (req: Request, res: Response) => {
+  const username = req.params.username;
+  if (!username) {
+    return res.status(400).json({ error: 'Username is required' });
+  }
 
-// Emergency login endpoint - creates a token with zero database dependency
-router.post('/auth/emergency-login', async (req: Request, res: Response) => {
   try {
-    const { username } = req.body;
-    
-    if (!username) {
-      return res.status(400).json({
-        error: 'Username is required for emergency login'
+    let user = await storage.getUserByUsername(username);
+    if (!user) {
+      console.log(`[EMERGENCY AUTH] User ${username} not found, creating...`);
+      user = await storage.createUser({
+        username,
+        password: 'emergency',
+        role: 'user',
+        displayName: null,
+        createdAt: new Date(),
       });
     }
-    
-    // Generate token without any database lookup
-    const token = generateEmergencyToken(username);
-    
-    // Log the action for audit purposes
-    console.log(`[EMERGENCY] Emergency login issued for ${username}`);
-    
-    // Return token and user data
-    return res.json({
-      success: true,
-      token,
-      user: {
-        id: -999,
-        username,
-        displayName: username,
-        emergency: true
-      },
-      message: 'Emergency authentication successful. This is a temporary login that bypasses normal authentication.'
+
+    if (!user) {
+      return res.status(500).json({ error: 'Failed to create or retrieve user' });
+    }
+
+    const userResponse: UserResponse = {
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      role: user.role,
+      createdAt: user.createdAt,
+    };
+
+    const token = jwt.sign(userResponse, process.env.JWT_SECRET || 'movie-watchlist-secure-jwt-secret-key', {
+      expiresIn: '7d',
     });
+
+    res.json({ token, user: userResponse });
   } catch (error) {
-    console.error('[EMERGENCY AUTH] Error during emergency login:', error);
-    return res.status(500).json({
-      error: 'Emergency authentication failed',
-      message: 'Could not complete emergency login process',
-      technical: String(error)
-    });
+    console.error('[EMERGENCY AUTH] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Emergency authentication middleware for routes that need to check for emergency tokens
-export function emergencyAuthCheck(req: Request, res: Response, next: NextFunction) {
-  try {
-    // Get authorization header
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return next(); // Not using emergency auth, continue to next middleware
-    }
-    
-    // Extract token
-    const token = authHeader.split('Bearer ')[1];
-    
-    if (!token) {
-      return next(); // No token, continue to next middleware
-    }
-    
-    // Verify token
-    const decodedToken = jwt.verify(token, JWT_SECRET) as any;
-    
-    // Check if this is an emergency token
-    if (decodedToken && decodedToken.emergency === true) {
-      console.log(`[EMERGENCY] Using emergency token for ${decodedToken.username}`);
-      
-      // Attach emergency user to request
-      req.user = {
-        id: decodedToken.id || -999,
-        username: decodedToken.username,
-        displayName: decodedToken.displayName || decodedToken.username,
-        emergency: true
-      };
-      
-      return next();
-    }
-    
-    // Not an emergency token, continue to next middleware
-    return next();
-  } catch (error) {
-    // Invalid token, continue to next middleware
-    return next();
-  }
-}
-
-export const emergencyAuthRouter = router;
+export default router;

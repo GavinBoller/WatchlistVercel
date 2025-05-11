@@ -5,7 +5,6 @@ import bcrypt from 'bcryptjs';
 import { User, UserResponse } from '@shared/schema';
 import { storage } from './storage';
 
-
 // Custom type for enhanced session data
 declare module 'express-session' {
   interface SessionData {
@@ -32,8 +31,8 @@ export function configurePassport() {
           console.log(`[AUTH] Enhanced authentication for known user: ${username}`);
           
           // Try multiple ways to fetch the user with fallbacks
-          let user;
-          let dbError = null;
+          let user: User | undefined;
+          let dbError: unknown = null;
           
           // First attempt: normal storage method
           try {
@@ -42,26 +41,6 @@ export function configurePassport() {
           } catch (err) {
             console.error('[AUTH] Primary user lookup failed:', err);
             dbError = err;
-          }
-          
-          // Second attempt: try direct database query with error handling
-          if (!user && dbError) {
-            try {
-              if (typeof (storage as any).directSqlQuery === 'function') {
-                console.log('[AUTH] Attempting direct SQL query fallback');
-                const result = await (storage as any).directSqlQuery(
-                  'SELECT * FROM users WHERE username = $1',
-                  [username]
-                );
-                
-                if (result && result.length > 0) {
-                  user = result[0];
-                  console.log(`[AUTH] User found via direct SQL query: ${user.username} (${user.id})`);
-                }
-              }
-            } catch (sqlError) {
-              console.error('[AUTH] Direct SQL query fallback failed:', sqlError);
-            }
           }
           
           // Third attempt: try to create the user if it doesn't exist
@@ -74,9 +53,11 @@ export function configurePassport() {
               
               // Try to create user
               user = await storage.createUser({
-                username: username,
+                username,
                 password: passwordHash,
-                // displayName removed
+                role: 'user',
+                displayName: null,
+                createdAt: new Date(),
               });
               
               if (user) {
@@ -111,7 +92,13 @@ export function configurePassport() {
               
               if (isPasswordValid) {
                 // Create sanitized user object
-                const { password: _, ...userWithoutPassword } = user;
+                const userWithoutPassword: UserResponse = {
+                  id: user.id,
+                  username: user.username,
+                  displayName: user.displayName,
+                  role: user.role,
+                  createdAt: user.createdAt,
+                };
                 console.log(`[AUTH] Login successful for known user: ${username} (${user.id})`);
                 return done(null, userWithoutPassword);
               } else {
@@ -155,7 +142,13 @@ export function configurePassport() {
           }
           
           // Return user without password
-          const { password: _, ...userWithoutPassword } = user;
+          const userWithoutPassword: UserResponse = {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            role: user.role,
+            createdAt: user.createdAt,
+          };
           console.log(`[AUTH] Login successful for user: ${user.username} (ID: ${user.id})`);
           return done(null, userWithoutPassword);
         }
@@ -177,7 +170,9 @@ export function configurePassport() {
       const sessionUser = {
         id: userId,
         username: userData.username,
-        // displayName removed
+        displayName: userData.displayName,
+        role: userData.role,
+        createdAt: userData.createdAt,
       };
       
       // Add explicit delay to ensure session is saved properly
@@ -201,7 +196,7 @@ export function configurePassport() {
 
       // Handle both formats - object format from our new serializer and ID-only format from legacy sessions
       const isObjectFormat = userData && typeof userData === 'object';
-      let userId;
+      let userId: number;
       
       // CRITICAL FIX: Add special handling for corrupted userData values
       if (isObjectFormat && userData.id) {
@@ -229,7 +224,13 @@ export function configurePassport() {
         // Force a database lookup for these IDs
         const user = await storage.getUser(userId);
         if (user) {
-          const { password: _, ...userWithoutPassword } = user;
+          const userWithoutPassword: UserResponse = {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            role: user.role,
+            createdAt: user.createdAt,
+          };
           console.log(`[AUTH] Successfully recovered problematic user: ${user.username} (ID: ${user.id})`);
           return done(null, userWithoutPassword);
         }
@@ -248,8 +249,8 @@ export function configurePassport() {
       
       // Otherwise, look up from database with retry logic for transient database issues
       let retries = 2;
-      let user = null;
-      let lastError = null;
+      let user: User | undefined = null;
+      let lastError: unknown = null;
       
       for (let attempt = 0; attempt <= retries; attempt++) {
         try {
@@ -288,7 +289,13 @@ export function configurePassport() {
       }
       
       // Return user without password
-      const { password: _, ...userWithoutPassword } = user;
+      const userWithoutPassword: UserResponse = {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName,
+        role: user.role,
+        createdAt: user.createdAt,
+      };
       console.log(`[AUTH] Successfully deserialized user: ${user.username} (ID: ${user.id})`);
       done(null, userWithoutPassword);
     } catch (error) {
@@ -333,8 +340,8 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
         id: userData.id,
         username: userData.username,
         displayName: userData.displayName || null,
-        createdAt: new Date(),
-        password: '' // Empty password since it's not needed for auth
+        role: userData.role || 'user',
+        createdAt: new Date(userData.createdAt || Date.now()),
       };
       
       console.log(`[AUTH] Restored user from session data: ${userData.username} (ID: ${userData.id})`);
@@ -352,8 +359,8 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
         id: (req.session as any).preservedUserId,
         username: (req.session as any).preservedUsername,
         displayName: (req.session as any).preservedDisplayName || null,
+        role: 'user',
         createdAt: new Date(),
-        password: '' // Empty password since it's not needed for auth
       };
       
       console.log(`[AUTH] Restored user from preserved data: ${(req.session as any).preservedUsername} (ID: ${(req.session as any).preservedUserId})`);
@@ -432,7 +439,8 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
         if (err) {
           console.error(`[AUTH] Session save error for special user ${currentUser.username}:`, err);
         } else {
-          console.log(`[AUTH] Enhanced session saved for ${currentUser.username}, ID: ${req.sessionID}`);
+          console.log(`[AUTH] Enhanced session saved forդ
+          ${currentUser.username}, ID: ${req.sessionID}`);
         }
         next();
       });
@@ -489,7 +497,6 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
 }
 
 // Custom session validation and maintenance middleware
-// This helps prevent session issues with frequent API calls
 export function validateSession(req: Request, res: Response, next: NextFunction) {
   // Skip for unauthenticated sessions
   if (!req.isAuthenticated()) {
@@ -516,10 +523,8 @@ export function validateSession(req: Request, res: Response, next: NextFunction)
 }
 
 // Middleware to check if the user has access to the requested watchlist
-// with enhanced security validation, production-aware logging, and session protection
-export function hasWatchlistAccess(req: Request, res: Response, next: NextFunction) {
+export async function hasWatchlistAccess(req: Request, res: Response, next: NextFunction) {
   // MAJOR ENHANCEMENT: Production-specific watchlist access checks with fallback mechanisms
-  // Environment detection for tailored behavior
   const isProd = process.env.NODE_ENV === 'production';
   
   // Skip this check for public endpoints
@@ -535,7 +540,6 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
   // RECOVERY MECHANISM 1: Extract userId from different sources
   let requestUserId: number | undefined;
   
-  // Try to get userId from multiple sources
   if (req.params.userId) {
     requestUserId = parseInt(req.params.userId);
   } else if (req.body && req.body.userId) {
@@ -547,7 +551,6 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
   console.log(`[AUTH] Requested userId from params/body/query: ${requestUserId || 'none'}`);
   
   // CRITICAL FIX: Always add user ID from authentication to the request if missing
-  // This is the key fix for the "username not found" issue
   if (req.method === 'POST' && req.path === '/api/watchlist' && !req.body.userId && req.user) {
     const authUser = req.user as UserResponse;
     console.log(`[AUTH] CRITICAL FIX: Adding missing userId ${authUser.id} to request body`);
@@ -555,7 +558,6 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
   }
   
   if (req.session) {
-    // Log session information for debugging
     console.log(`[AUTH] Session data:`, {
       id: req.sessionID,
       authenticated: req.session.authenticated,
@@ -575,7 +577,7 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
     console.log(`[AUTH] No user object in request`);
   }
   
-  // RECOVERY MECHANISM 2: Check session for preserved user data (Test users)
+  // RECOVERY MECHANISM 2: Check session for preserved user data
   const preservedUserId = (req.session as any)?.preservedUserId;
   const preservedUsername = (req.session as any)?.preservedUsername;
   
@@ -585,26 +587,19 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
   
   // For watchlist specific operations
   if (req.path.includes('/watchlist')) {
-    // Set cache control headers to prevent stale sessions
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     
-    // Double-check authentication with enhanced verification (defensive programming)
-    // Enhanced check using multiple authentication mechanisms
     const isPassportAuthenticated = req.isAuthenticated();
     const isSessionAuthenticated = req.session && req.session.authenticated === true;
     const hasUserObject = !!req.user;
     
-    // RECOVERY MECHANISM 3: Check for special user data in session as a fallback
     let hasSpecialUserData = !!(preservedUserId && preservedUsername);
     
-    // CRITICAL FIX: If user object is missing, try multiple recovery methods
     if (!hasUserObject) {
       console.log(`[AUTH:WATCHLIST] User object missing, attempting recovery`);
       
-      // Try to restore from session data
       if (req.session) {
-        // Check for backup user data first
         if ((req.session as any).userData && 
             (req.session as any).userData.id && 
             (req.session as any).userData.username) {
@@ -612,84 +607,69 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
           console.log(`[AUTH:WATCHLIST] Found userData in session for ${(req.session as any).userData.username}`);
           hasSpecialUserData = true;
           
-          // Create user object from session data
           const userData = (req.session as any).userData;
           req.user = {
             id: userData.id,
             username: userData.username,
             displayName: userData.displayName || userData.username,
-            createdAt: new Date(),
-            password: '' // Empty password since it's not needed for auth
+            role: userData.role || 'user',
+            createdAt: new Date(userData.createdAt || Date.now()),
           };
           
           console.log(`[AUTH:WATCHLIST] Restored user from session data: ${userData.username} (ID: ${userData.id})`);
         }
-        // Then check for preserved user data
         else if (preservedUserId && preservedUsername) {
           console.log(`[AUTH:WATCHLIST] Using preserved user data for ${preservedUsername}`);
           hasSpecialUserData = true;
           
-          // Create user object from preserved data
           req.user = {
             id: preservedUserId,
             username: preservedUsername,
             displayName: (req.session as any).preservedDisplayName || preservedUsername,
+            role: 'user',
             createdAt: new Date(),
-            password: '' // Empty password since it's not needed for auth
           };
           
           console.log(`[AUTH:WATCHLIST] Restored user from preserved data: ${preservedUsername} (ID: ${preservedUserId})`);
         }
-        // PRODUCTION RECOVERY: Try to get user from direct database lookup using userId from request
         else if (isProd && requestUserId) {
           console.log(`[AUTH:WATCHLIST] Attempting direct database lookup for user ID: ${requestUserId}`);
           
           try {
-            // Try to get user directly from storage
-            const dbUser = storage.getUser(requestUserId);
-            
-            // If promise resolves, we'll use this user directly
-            dbUser.then((user: User | undefined) => {
-              if (!user) return;
-              if (user) {
-                console.log(`[AUTH:WATCHLIST] Found user via direct lookup: ${user.username} (ID: ${user.id})`);
-                const { password: _, ...userWithoutPassword } = user;
+            const user = await storage.getUser(requestUserId);
+            if (user) {
+              console.log(`[AUTH:WATCHLIST] Found user via direct lookup: ${user.username} (ID: ${user.id})`);
+              const userWithoutPassword: UserResponse = {
+                id: user.id,
+                username: user.username,
+                displayName: user.displayName,
+                role: user.role,
+                createdAt: user.createdAt,
+              };
+              
+              req.user = userWithoutPassword;
+              
+              if (req.session) {
+                (req.session as any).userData = userWithoutPassword;
+                (req.session as any).preservedUserId = user.id;
+                (req.session as any).preservedUsername = user.username;
+                req.session.authenticated = true;
                 
-                // Set user object and continue request
-                req.user = userWithoutPassword;
-                
-                // Also update session data for future requests
-                if (req.session) {
-                  (req.session as any).userData = userWithoutPassword;
-                  (req.session as any).preservedUserId = user.id;
-                  (req.session as any).preservedUsername = user.username;
-                  req.session.authenticated = true;
-                  
-                  // Save session in background
-                  req.session.save();
-                }
-                
-                // Continue to next middleware
-                next();
-              } else {
-                // User not found in database
-                console.log(`[AUTH:WATCHLIST] User ID ${requestUserId} not found in database`);
-                res.status(401).json({ 
-                  message: 'User not found',
-                  code: 'USER_NOT_FOUND' 
-                });
+                req.session.save();
               }
-            }).catch((err: unknown) => {
-              console.error(`[AUTH:WATCHLIST] Error during direct user lookup:`, err);
-              // Continue normal flow below
-            });
-            
-            // Don't continue normal flow - the async callback above will handle it
-            return;
-            
+              
+              next();
+              return;
+            } else {
+              console.log(`[AUTH:WATCHLIST] User ID ${requestUserId} not found in database`);
+              res.status(401).json({ 
+                message: 'User not found',
+                code: 'USER_NOT_FOUND' 
+              });
+              return;
+            }
           } catch (dbError) {
             console.error(`[AUTH:WATCHLIST] Database error during direct user lookup:`, dbError);
-            // Continue with normal flow
           }
         }
       }
@@ -697,10 +677,8 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
     
     console.log(`[AUTH] Watchlist authentication sources - Passport: ${isPassportAuthenticated}, Session flag: ${isSessionAuthenticated}, User object: ${hasUserObject || !!req.user}, Special user data: ${hasSpecialUserData}`);
     
-    // Check again for user object in case recovery mechanisms populated it
     const hasUserObjectAfterRecovery = !!req.user;
     
-    // If user is not authenticated by any method, deny access
     if (!(isPassportAuthenticated || isSessionAuthenticated || hasSpecialUserData) || 
         !(hasUserObjectAfterRecovery || hasSpecialUserData)) {
       console.log('[AUTH] Watchlist access denied: Session not authenticated');
@@ -712,13 +690,11 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
       });
     }
     
-    // Ensure session authenticated flag is set for future requests
     if ((isPassportAuthenticated || hasUserObjectAfterRecovery) && req.session) {
       console.log('[AUTH] Setting session.authenticated flag for persistence');
       req.session.authenticated = true;
       req.session.lastChecked = Date.now();
       
-      // Don't await the save - let it happen in the background
       req.session.save(err => {
         if (err) {
           console.error('[AUTH] Error saving session after watchlist authentication update:', err);
@@ -726,10 +702,8 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
       });
     }
     
-    // Use req.user which may have been populated by recovery mechanisms
     const currentUser = req.user as UserResponse;
     
-    // Final verification of user object integrity
     if (!currentUser || !currentUser.id) {
       console.error('[AUTH] Watchlist access denied: Invalid user object in session after all recovery attempts');
       
@@ -742,23 +716,17 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
     
     console.log(`[AUTH] Watchlist access request by user: ${currentUser.username} (ID: ${currentUser.id})`);
     
-    // CRITICAL FIX for watchlist operations:
-    // For POST to /api/watchlist (creating watchlist entry)
     if (req.method === 'POST' && req.path === '/api/watchlist') {
-      // Log the request details for debugging
       console.log('[AUTH] POST /api/watchlist - Request body:', req.body);
       
-      // CRITICAL FIX: If userId is missing in the body, add it automatically
       if (!req.body.userId) {
         console.log(`[AUTH] Adding missing userId ${currentUser.id} to watchlist request body`);
         req.body.userId = currentUser.id;
       }
       
-      // Ensure userId in the request matches the authenticated user
       if (req.body.userId && req.body.userId !== currentUser.id) {
         console.log(`[AUTH] Warning: Body userId ${req.body.userId} different from authenticated user ${currentUser.id}`);
         
-        // In production, automatically correct this to prevent errors
         if (isProd) {
           console.log(`[AUTH] Correcting userId in request body to match authenticated user`);
           req.body.userId = currentUser.id;
@@ -784,34 +752,26 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
         return next();
       }
       
-      // If userId is missing from body, continue to next middleware
-      // The route handler should validate required fields
       return next();
     }
     
-    // For paths like /api/watchlist/:userId or /api/watchlist/:id
     if (req.path.startsWith('/api/watchlist/')) {
-      // Extract the parameter from the path
       const pathParts = req.path.split('/');
       const pathParam = pathParts[pathParts.length - 1];
       const pathUserId = parseInt(pathParam, 10);
       
-      // If it's not a number or empty, it might be a different endpoint format
       if (isNaN(pathUserId) || pathParam === '') {
         console.log(`[AUTH] Skipping user ID check for non-numeric path parameter: ${pathParam}`);
         return next();
       }
       
-      // For GET /api/watchlist/:userId - verify user has access to this watchlist
       if (req.method === 'GET') {
-        // Check if user is accessing their own watchlist
         if (currentUser.id === pathUserId) {
           console.log(`[AUTH] Watchlist access allowed: User ${currentUser.id} accessing own watchlist`);
           return next();
         }
         
         console.log(`[AUTH] Watchlist access denied: User ${currentUser.id} tried to access watchlist ${pathUserId}`);
-        // For this application, users can only access their own watchlists
         return res.status(403).json({ 
           message: isProd 
             ? 'Access denied' 
@@ -822,21 +782,13 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
         });
       }
       
-      // For PUT, DELETE operations on /api/watchlist/:id
-      // We need to verify the entry belongs to the current user
       if ((req.method === 'PUT' || req.method === 'DELETE') && pathParam) {
-        // We'll let the route handler verify ownership before updating/deleting
-        // This requires custom logic in the route handler to check the entry's userId
         console.log(`[AUTH] Delegating ownership check for ${req.method} operation to route handler`);
         return next();
       }
     }
     
-    // For any other watchlist operations, let the route handler handle it
     console.log('[AUTH] Allowing request to proceed to route handler');
     return next();
   }
-  
-  // For non-watchlist endpoints
-  next();
 }

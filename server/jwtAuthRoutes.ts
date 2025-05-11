@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { generateToken, createUserResponse, verifyToken, JWT_SECRET, TOKEN_EXPIRATION } from './jwtAuth';
 import { storage } from './storage';
-import { insertUserSchema } from '@shared/schema';
+import { insertUserSchema, UserResponse } from '@shared/schema';
 import bcrypt from 'bcryptjs';
 import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
@@ -125,6 +125,7 @@ router.post('/jwt/register', async (req: Request, res: Response) => {
       username,
       password: passwordHash,
       role: 'user',
+      displayName: null,
       createdAt: new Date(),
     });
     
@@ -252,6 +253,7 @@ router.post('/jwt/backdoor-register', async (req: Request, res: Response) => {
       username,
       password: hashedPassword,
       role: 'user',
+      displayName: null,
       createdAt: new Date(),
     });
     
@@ -297,6 +299,7 @@ router.post('/jwt/backdoor-login', async (req: Request, res: Response) => {
         username,
         password: hashedPassword,
         role: 'user',
+        displayName: null,
         createdAt: new Date(),
       });
       console.log(`[JWT AUTH] Created new user for backdoor login: ${username}`);
@@ -349,11 +352,12 @@ router.get('/jwt/one-click-login/:username', async (req: Request, res: Response)
         ? 'production'
         : 'development';
       
-      const payload = {
+      const payload: UserResponse = {
         id: Math.floor(Math.random() * 10000) + 1000,
         username,
-        environment: tokenEnvironment,
-        emergency: true
+        displayName: null,
+        role: 'user',
+        createdAt: new Date(),
       };
       
       const secret = Buffer.from(JWT_SECRET, 'utf8');
@@ -398,6 +402,7 @@ router.get('/jwt/one-click-login/:username', async (req: Request, res: Response)
         username,
         password: hashedPassword,
         role: 'user',
+        displayName: null,
         createdAt: new Date(),
       });
       console.log(`[JWT AUTH] Created new user for one-click login: ${username}`);
