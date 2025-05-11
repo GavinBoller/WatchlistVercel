@@ -4,6 +4,7 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcryptjs';
 import { User, UserResponse } from '@shared/schema';
 import { storage } from './storage';
+import { User } from '@shared/schema';
 
 // Custom type for enhanced session data
 declare module 'express-session' {
@@ -646,7 +647,7 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
             const dbUser = storage.getUser(requestUserId);
             
             // If promise resolves, we'll use this user directly
-            dbUser.then(user => {
+            dbUser.then((user: User) => {
               if (user) {
                 console.log(`[AUTH:WATCHLIST] Found user via direct lookup: ${user.username} (ID: ${user.id})`);
                 const { password: _, ...userWithoutPassword } = user;
@@ -675,7 +676,7 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
                   code: 'USER_NOT_FOUND' 
                 });
               }
-            }).catch(err => {
+            }).catch((err: unknown) => {
               console.error(`[AUTH:WATCHLIST] Error during direct user lookup:`, err);
               // Continue normal flow below
             });

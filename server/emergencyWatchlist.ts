@@ -4,15 +4,7 @@
 
 import { Request, Response, Router, NextFunction } from 'express';
 import { storage } from './storage';
-import { executeDirectSql } from './db';
-import bcrypt from 'bcryptjs';
-import { 
-  Movie, 
-  WatchlistEntry, 
-  WatchlistEntryWithMovie,
-  InsertWatchlistEntry,
-  User
-} from '@shared/schema';
+import { User, Movie, WatchlistEntry, WatchlistEntryWithMovie } from '@shared/schema';
 import { emergencyAuthCheck } from './emergencyAuth';
 
 const router = Router();

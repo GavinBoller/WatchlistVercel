@@ -4,48 +4,48 @@ import * as schema from "@shared/schema";
 
 const { users, movies, watchlistEntries, platforms } = schema;
 
-export async function getUserByUsername(username: string) {
+async function getUserByUsername(username: string) {
   const db = await getDb();
   const result = await db.select().from(users).where(eq(users.username, username));
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function getUser(userId: number) {
+async function getUser(userId: number) {
   const db = await getDb();
   const result = await db.select().from(users).where(eq(users.id, userId));
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function getAllUsers() {
+async function getAllUsers() {
   const db = await getDb();
   return await db.select().from(users);
 }
 
-export async function createUser(userData: schema.User) {
+async function createUser(userData: schema.User) {
   const db = await getDb();
   const result = await db.insert(users).values(userData).returning();
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function getMovieByTmdbId(tmdbId: number) {
+async function getMovieByTmdbId(tmdbId: number) {
   const db = await getDb();
   const result = await db.select().from(movies).where(eq(movies.tmdbId, tmdbId));
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function getMovie(movieId: number) {
+async function getMovie(movieId: number) {
   const db = await getDb();
   const result = await db.select().from(movies).where(eq(movies.id, movieId));
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function createMovie(movieData: Partial<schema.Movie>) {
+async function createMovie(movieData: Partial<schema.Movie>) {
   const db = await getDb();
   const result = await db.insert(movies).values(movieData).returning();
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function getWatchlistEntries(userId: number) {
+async function getWatchlistEntries(userId: number) {
   const db = await getDb();
   const result = await db
     .select({
@@ -68,7 +68,7 @@ export async function getWatchlistEntries(userId: number) {
   return result;
 }
 
-export async function getWatchlistEntry(entryId: number) {
+async function getWatchlistEntry(entryId: number) {
   const db = await getDb();
   const result = await db
     .select()
@@ -77,13 +77,13 @@ export async function getWatchlistEntry(entryId: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function createWatchlistEntry(entryData: Partial<schema.WatchlistEntry>) {
+async function createWatchlistEntry(entryData: Partial<schema.WatchlistEntry>) {
   const db = await getDb();
   const result = await db.insert(watchlistEntries).values(entryData).returning();
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function updateWatchlistEntry(
+async function updateWatchlistEntry(
   entryId: number,
   updates: Partial<schema.WatchlistEntry>
 ) {
@@ -96,7 +96,7 @@ export async function updateWatchlistEntry(
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function deleteWatchlistEntry(entryId: number) {
+async function deleteWatchlistEntry(entryId: number) {
   const db = await getDb();
   const result = await db
     .delete(watchlistEntries)
@@ -105,7 +105,7 @@ export async function deleteWatchlistEntry(entryId: number) {
   return result.length > 0;
 }
 
-export async function hasWatchlistEntry(userId: number, movieId: number) {
+async function hasWatchlistEntry(userId: number, movieId: number) {
   const db = await getDb();
   const result = await db
     .select()
@@ -119,13 +119,13 @@ export async function hasWatchlistEntry(userId: number, movieId: number) {
   return result.length > 0;
 }
 
-export async function getPlatforms(userId: number) {
+async function getPlatforms(userId: number) {
   const db = await getDb();
   const result = await db.select().from(platforms).where(eq(platforms.userId, userId));
   return result;
 }
 
-export async function getPlatform(platformId: number) {
+async function getPlatform(platformId: number) {
   const db = await getDb();
   const result = await db
     .select()
@@ -134,13 +134,13 @@ export async function getPlatform(platformId: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function createPlatform(platformData: Partial<schema.Platform>) {
+async function createPlatform(platformData: Partial<schema.Platform>) {
   const db = await getDb();
   const result = await db.insert(platforms).values(platformData).returning();
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function updatePlatform(
+async function updatePlatform(
   platformId: number,
   updates: Partial<schema.Platform>
 ) {
@@ -153,7 +153,7 @@ export async function updatePlatform(
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function deletePlatform(platformId: number) {
+async function deletePlatform(platformId: number) {
   const db = await getDb();
   const result = await db
     .delete(platforms)
@@ -161,3 +161,24 @@ export async function deletePlatform(platformId: number) {
     .returning();
   return result.length > 0;
 }
+
+export const storage = {
+  getUserByUsername,
+  getUser,
+  getAllUsers,
+  createUser,
+  getMovieByTmdbId,
+  getMovie,
+  createMovie,
+  getWatchlistEntries,
+  getWatchlistEntry,
+  createWatchlistEntry,
+  updateWatchlistEntry,
+  deleteWatchlistEntry,
+  hasWatchlistEntry,
+  getPlatforms,
+  getPlatform,
+  createPlatform,
+  updatePlatform,
+  deletePlatform,
+};

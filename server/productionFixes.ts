@@ -6,6 +6,7 @@
 import express, { Request, Response, NextFunction, Application } from 'express';
 import { storage } from './storage';
 import { User } from '@shared/schema';
+import { User } from '@shared/schema';
 import { Session } from 'express-session';
 
 // Extend express-session with our custom properties
@@ -93,7 +94,7 @@ export function productionSessionRepair(req: Request, res: Response, next: NextF
     
     // Emergency user fetch
     storage.getUser(userId)
-      .then(user => {
+    .then((user: User) => {
         if (!user) {
           console.log(`[PROD-REPAIR] Emergency login failed - user ID ${userId} not found`);
           return next();
@@ -139,7 +140,7 @@ export function productionSessionRepair(req: Request, res: Response, next: NextF
           });
         });
       })
-      .catch(err => {
+      .catch((err: unknown) => {
         console.error('[PROD-REPAIR] Emergency user lookup failed:', err);
         next();
       });

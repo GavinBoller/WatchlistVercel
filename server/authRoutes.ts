@@ -2,6 +2,7 @@ import { Request, Response, Router } from 'express';
 import passport from 'passport';
 import bcrypt from 'bcryptjs';
 import { storage } from './storage';
+import { User } from '@shared/schema';
 import { insertUserSchema, UserResponse, User } from '@shared/schema';
 import { z } from 'zod';
 import 'express-session';
@@ -82,7 +83,7 @@ router.post('/login', (req: Request, res: Response, next) => {
     
     // Use direct database user lookup
     storage.getUserByUsername(username)
-      .then(async user => {
+    .then(async (user: User) => {
         if (!user) {
           console.log(`[LOGIN] Production login failed: User not found ${username}`);
           return res.status(401).json({ message: 'Invalid credentials' });
@@ -141,7 +142,7 @@ router.post('/login', (req: Request, res: Response, next) => {
           return res.status(500).json({ message: 'Authentication error' });
         }
       })
-      .catch(dbError => {
+      .catch((dbError: unknown) => {
         console.error(`[LOGIN] Production database error:`, dbError);
         return res.status(500).json({ message: 'Server error during login' });
       });
@@ -1057,15 +1058,14 @@ router.post('/register', async (req: Request, res: Response) => {
   try {
     // First validate the input data
     const registerSchema = insertUserSchema
-      .omit({ password: true }) // Remove password from schema
-      .extend({
-        password: z.string().min(6, 'Password must be at least 6 characters'),
-        confirmPassword: z.string()
-      })
-      .refine(data => data.password === data.confirmPassword, {
-        message: 'Passwords do not match',
-        path: ['confirmPassword']
-      });
+    pick({ username: true, password: true })
+    .extend({
+      confirmPassword: z.string().min(6),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: "Passwords must match",
+      path: ["confirmPassword"],
+    });
     
     console.log('[REGISTER] Validating registration data');
     const validatedData = registerSchema.parse(req.body);

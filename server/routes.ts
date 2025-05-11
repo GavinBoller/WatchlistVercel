@@ -393,7 +393,7 @@ router.get("/movies/search", async (req, res) => {
 
       results = [
         ...results,
-        ...movieResponse.data.results.map((item) => ({
+        ...movieResponse.data.results.map((item: TMDBMovie) => ({
           ...item,
           media_type: "movie",
         })),
@@ -414,7 +414,7 @@ router.get("/movies/search", async (req, res) => {
 
       results = [
         ...results,
-        ...tvResponse.data.results.map((item) => ({ ...item, media_type: "tv" })),
+        ...tvResponse.data.results.map((item: TMDBMovie) => ({ ...item, media_type: "tv" })),
       ];
     }
 
@@ -1126,7 +1126,7 @@ router.post("/watchlist", async (req, res) => {
         console.error(
           "[WATCHLIST] Critical database error detected, checking connection status..."
         );
-        const { pool } = await import("./db");
+        // Pool not needed; handled by executeDirectSql
         if (pool && pool.totalCount !== undefined) {
           const connStatus = {
             totalCount: pool.totalCount,

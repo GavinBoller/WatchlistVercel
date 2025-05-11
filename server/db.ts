@@ -1,8 +1,8 @@
-import { Pool } from 'pg';
+import { Pool, QueryResultRow } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '@shared/schema';
 
-let db;
+let db: ReturnType<typeof drizzle> | undefined;
 
 export async function getDb() {
   if (!db) {
@@ -15,7 +15,7 @@ export async function getDb() {
   return db;
 }
 
-export async function executeDirectSql<T>(
+export async function executeDirectSql<T extends QueryResultRow>(
   sql: string,
   params: any[] = [],
   errorMessage = 'SQL execution failed'
