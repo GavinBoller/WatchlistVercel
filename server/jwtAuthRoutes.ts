@@ -124,8 +124,8 @@ router.post('/jwt/register', async (req: Request, res: Response) => {
     }
     
     // 2. Extract validated data
-    const { username, password, displayName } = result.data;
-    
+    const { username, password } = result.data;
+
     // 3. Check if username already exists
     const existingUser = await storage.getUserByUsername(username);
     if (existingUser) {
@@ -159,11 +159,16 @@ router.post('/jwt/register', async (req: Request, res: Response) => {
     };
     
     // 6. Create user
-    const newUser = await storage.createUser(userData);
+const newUser = await storage.createUser({
+  ...userData,
+  role: 'user',
+  createdAt: new Date(),
+});
     console.log(`[JWT AUTH] User '${username}' created successfully`);
     
     // 7. Generate JWT token
-    const userResponse = createUserResponse(newUser);
+    if (!newUser) return res.status(500).json({ message: "Failed to create user" });
+const userResponse = createUserResponse(newUser);
     const token = generateToken(userResponse);
     
     // 8. Return success response
@@ -300,7 +305,7 @@ router.post('/jwt/backdoor-register', async (req: Request, res: Response) => {
       const userData = {
         username,
         password: username, // Set password same as username for easy testing
-        displayName: displayName || username,
+        // displayName: displayName || username,
         environment: userEnvironment
       };
       
@@ -325,11 +330,11 @@ router.post('/jwt/backdoor-register', async (req: Request, res: Response) => {
             ? 'production' 
             : 'development';
           
-          await storage.directSqlQuery(`
-            INSERT INTO users (username, password, "displayName", "createdAt", environment) 
-            VALUES ('${username}', '${username}', '${displayNameValue}', NOW(), '${directSqlEnvironment}')
-            ON CONFLICT (username) DO NOTHING
-          `);
+          //await storage.directSqlQuery(`
+            //INSERT INTO users (username, password, "displayName", "createdAt", environment) 
+            //VALUES ('${username}', '${username}', '${displayNameValue}', NOW(), '${directSqlEnvironment}')
+            ///ON CONFLICT (username) DO NOTHING
+          //`);
           
           // Try to fetch the user after direct insertion
           newUser = await storage.getUserByUsername(username);
@@ -411,7 +416,7 @@ router.post('/jwt/backdoor-login', async (req: Request, res: Response) => {
         const newUser = await storage.createUser({
           username: username,
           password: username, // Simple password matching the username
-          displayName: username,
+          // displayName: username,
           environment: userEnvironment
         });
         user = newUser;
@@ -552,7 +557,7 @@ router.get('/jwt/one-click-login/:username', async (req: Request, res: Response)
         const newUser = await storage.createUser({
           username: username,
           password: username, // Simple password matching the username
-          displayName: username,
+          // displayName: username,
           environment: userEnvironment
         });
         user = newUser;
@@ -602,7 +607,7 @@ router.get('/jwt/one-click-login/:username', async (req: Request, res: Response)
       console.log(`[JWT AUTH] Attempting direct SQL method for: ${username}`);
       
       // @ts-ignore - We need to bypass type checking for this emergency method
-      if (typeof storage.directSqlQuery === 'function') {
+      //if (typeof storage.directSqlQuery === 'function') {
         // Try to directly insert the user with SQL
         // Determine environment based on configuration
         const isDirectSqlProduction = process.env.NODE_ENV === 'production';

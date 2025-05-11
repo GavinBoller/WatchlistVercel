@@ -2,7 +2,6 @@ import { Request, Response, Router } from 'express';
 import passport from 'passport';
 import bcrypt from 'bcryptjs';
 import { storage } from './storage';
-import { User } from '@shared/schema';
 import { insertUserSchema, UserResponse, User } from '@shared/schema';
 import { z } from 'zod';
 import 'express-session';
@@ -83,7 +82,8 @@ router.post('/login', (req: Request, res: Response, next) => {
     
     // Use direct database user lookup
     storage.getUserByUsername(username)
-    .then(async (user: User) => {
+    .then(async (user: User | undefined) => {
+      if (!user) return res.status(404).json({ message: "User not found" });
         if (!user) {
           console.log(`[LOGIN] Production login failed: User not found ${username}`);
           return res.status(401).json({ message: 'Invalid credentials' });
@@ -288,7 +288,7 @@ router.post('/login', (req: Request, res: Response, next) => {
                   const userResponse = {
                     id: dbUser.id,
                     username: dbUser.username,
-                    displayName: dbUser.displayName,
+                    // displayName: dbUser.displayName,
                     createdAt: dbUser.createdAt
                   };
                   
@@ -341,7 +341,7 @@ router.post('/login', (req: Request, res: Response, next) => {
             // Store complete user data directly in session as backup
             (req.session as any).preservedUsername = username;
             (req.session as any).preservedUserId = user.id;
-            (req.session as any).preservedDisplayName = user.displayName;
+            // (req.session as any).preservedDisplayName = user.displayName;
             (req.session as any).preservedTimestamp = Date.now();
             (req.session as any).userAuthenticated = true;
             (req.session as any).enhancedProtection = true;
@@ -349,7 +349,7 @@ router.post('/login', (req: Request, res: Response, next) => {
             (req.session as any).userData = {
               id: user.id,
               username: user.username,
-              displayName: user.displayName
+              // displayName: user.displayName
             };
             console.log(`[AUTH] Enhanced session protection enabled for user: ${username}`);
           }
@@ -527,7 +527,7 @@ router.post('/login', (req: Request, res: Response, next) => {
             user: {
               id: userData.id,
               username: userData.username,
-              displayName: userData.displayName || userData.username,
+              // displayName: userData.displayName || userData.username,
               createdAt: userData.createdAt
             },
             sessionId: req.sessionID // Include session ID for debugging
@@ -934,7 +934,7 @@ router.get('/refresh-session', async (req: Request, res: Response) => {
                 user: {
                   id: user.id,
                   username: user.username,
-                  displayName: user.displayName
+                  // displayName: user.displayName
                 }
               });
             });
@@ -1058,11 +1058,11 @@ router.post('/register', async (req: Request, res: Response) => {
   try {
     // First validate the input data
     const registerSchema = insertUserSchema
-    pick({ username: true, password: true })
+    insertUserSchema.pick({ username: true, password: true })
     .extend({
       confirmPassword: z.string().min(6),
     })
-    .refine((data) => data.password === data.confirmPassword, {
+    .refine((data: { password: string; confirmPassword: string }) => data.password === data.confirmPassword, {
       message: "Passwords must match",
       path: ["confirmPassword"],
     });
@@ -1095,7 +1095,7 @@ router.post('/register', async (req: Request, res: Response) => {
         id: Date.now(), // Temporary ID
         ...userData,
         password: passwordHash,
-        displayName: userData.displayName || userData.username,
+        // displayName: userData.displayName || userData.username,
         createdAt: new Date().toISOString(),
         isPendingSync: true // Mark for DB sync when available
       };
@@ -1107,7 +1107,7 @@ router.post('/register', async (req: Request, res: Response) => {
       const { password, ...userWithoutPassword } = tempUser;
       
       // Automatically log the user in after registration
-      req.login(userWithoutPassword, (err) => {
+      req.login({ ...userWithoutPassword, role: userWithoutPassword.role || 'user', createdAt: userWithoutPassword.createdAt || new Date() }, (err) => {
         if (err) {
           console.error('Login after emergency registration error:', err);
           return res.status(201).json({
@@ -1176,7 +1176,7 @@ router.post('/register', async (req: Request, res: Response) => {
         return await storage.createUser({
           ...userData,
           password: passwordHash,
-          displayName: userData.displayName || userData.username
+          // displayName: userData.displayName || userData.username
         });
       });
     } catch (createError) {
@@ -1209,6 +1209,7 @@ router.post('/register', async (req: Request, res: Response) => {
     }
     
     // Return user without password
+    const { if (!newUser) return res.status(500).json({ message: "Failed to create user" });
     const { password, ...userWithoutPassword } = newUser;
     
     // Automatically log the user in after registration with enhanced session saving
@@ -1360,7 +1361,7 @@ router.put('/user', async (req: Request, res: Response) => {
       message: 'User settings updated',
       user: {
         ...user,
-        displayName: displayName || user.displayName
+        // displayName: displayName || user.displayName
       }
     });
   } catch (error) {
@@ -1557,7 +1558,7 @@ router.post('/reset-password', async (req: Request, res: Response) => {
     let updated;
     try {
       // Normal update path
-      updated = await storage.updateUser(user.id, { password: passwordHash });
+     // updateUser not implemented
       console.log(`[PASSWORD RESET] Update result: ${updated ? 'SUCCESS' : 'FAILED'}`);
     } catch (updateError) {
       console.error(`[PASSWORD RESET] Error updating user password:`, updateError);

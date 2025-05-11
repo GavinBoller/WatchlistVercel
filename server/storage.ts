@@ -23,7 +23,13 @@ async function getAllUsers() {
 
 async function createUser(userData: schema.User) {
   const db = await getDb();
-  const result = await db.insert(users).values(userData).returning();
+  const result = await db.insert(users).values({
+    username: userData.username,
+    password: userData.password,
+    role: userData.role || 'user',
+    displayName: userData.displayName,
+    createdAt: userData.createdAt || new Date(),
+  }).returning();
   return result.length > 0 ? result[0] : undefined;
 }
 
@@ -39,9 +45,22 @@ async function getMovie(movieId: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-async function createMovie(movieData: Partial<schema.Movie>) {
+async function createMovie(movieData: Omit<schema.Movie, 'id' | 'createdAt'>) {
   const db = await getDb();
-  const result = await db.insert(movies).values(movieData).returning();
+  const result = await db.insert(movies).values({
+    tmdbId: movieData.tmdbId,
+    title: movieData.title,
+    overview: movieData.overview || null,
+    posterPath: movieData.posterPath || null,
+    backdropPath: movieData.backdropPath || null,
+    releaseDate: movieData.releaseDate || null,
+    voteAverage: movieData.voteAverage || 0,
+    runtime: movieData.runtime || null,
+    numberOfSeasons: movieData.numberOfSeasons || null,
+    numberOfEpisodes: movieData.numberOfEpisodes || null,
+    mediaType: movieData.mediaType || 'movie',
+    createdAt: new Date(),
+  }).returning();
   return result.length > 0 ? result[0] : undefined;
 }
 
@@ -77,9 +96,17 @@ async function getWatchlistEntry(entryId: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-async function createWatchlistEntry(entryData: Partial<schema.WatchlistEntry>) {
+async function createWatchlistEntry(entryData: Omit<schema.WatchlistEntry, 'id' | 'createdAt'>) {
   const db = await getDb();
-  const result = await db.insert(watchlistEntries).values(entryData).returning();
+  const result = await db.insert(watchlistEntries).values({
+    userId: entryData.userId,
+    movieId: entryData.movieId,
+    platformId: entryData.platformId || null,
+    status: entryData.status || 'to_watch',
+    watchedDate: entryData.watchedDate || null,
+    notes: entryData.notes || null,
+    createdAt: new Date(),
+  }).returning();
   return result.length > 0 ? result[0] : undefined;
 }
 
@@ -134,9 +161,14 @@ async function getPlatform(platformId: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-async function createPlatform(platformData: Partial<schema.Platform>) {
+async function createPlatform(platformData: Omit<schema.Platform, 'id'>) {
   const db = await getDb();
-  const result = await db.insert(platforms).values(platformData).returning();
+  const result = await db.insert(platforms).values({
+    userId: platformData.userId,
+    name: platformData.name,
+    logoUrl: platformData.logoUrl || null,
+    isDefault: platformData.isDefault || 0,
+  }).returning();
   return result.length > 0 ? result[0] : undefined;
 }
 
@@ -156,29 +188,4 @@ async function updatePlatform(
 async function deletePlatform(platformId: number) {
   const db = await getDb();
   const result = await db
-    .delete(platforms)
-    .where(eq(platforms.id, platformId))
-    .returning();
-  return result.length > 0;
-}
-
-export const storage = {
-  getUserByUsername,
-  getUser,
-  getAllUsers,
-  createUser,
-  getMovieByTmdbId,
-  getMovie,
-  createMovie,
-  getWatchlistEntries,
-  getWatchlistEntry,
-  createWatchlistEntry,
-  updateWatchlistEntry,
-  deleteWatchlistEntry,
-  hasWatchlistEntry,
-  getPlatforms,
-  getPlatform,
-  createPlatform,
-  updatePlatform,
-  deletePlatform,
-};
+    .delete(platform

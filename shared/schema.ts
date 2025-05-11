@@ -6,6 +6,7 @@ export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   username: text('username').notNull().unique(),
   password: text('password').notNull(),
+  displayName: text('display_name'),
   role: text('role').notNull().default('user'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
@@ -56,8 +57,9 @@ export type User = typeof users.$inferSelect;
 export type Movie = typeof movies.$inferSelect;
 export type WatchlistEntry = typeof watchlistEntries.$inferSelect;
 export type Platform = typeof platforms.$inferSelect;
+export type InsertWatchlistEntry = typeof watchlistEntries.$inferInsert;
 
-export type UserResponse = Omit<User, 'password'>;
+export type UserResponse = Omit<User, 'password'> & { displayName?: string };
 export type WatchlistEntryWithMovie = WatchlistEntry & {
   movie: Movie;
   platform: Platform | null;
@@ -66,6 +68,7 @@ export type WatchlistEntryWithMovie = WatchlistEntry & {
 export const insertUserSchema = createInsertSchema(users, {
   username: z.string().min(3),
   password: z.string().min(6),
+  displayName: z.string().optional(),
 }).extend({
   confirmPassword: z.string().min(6),
 }).refine(data => data.password === data.confirmPassword, {
@@ -93,6 +96,7 @@ export type TMDBMovie = {
   number_of_seasons?: number;
   number_of_episodes?: number;
   media_type: 'movie' | 'tv';
+  genre_ids?: number[];
 };
 
 export type TMDBSearchResponse = {

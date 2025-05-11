@@ -4,7 +4,7 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcryptjs';
 import { User, UserResponse } from '@shared/schema';
 import { storage } from './storage';
-import { User } from '@shared/schema';
+
 
 // Custom type for enhanced session data
 declare module 'express-session' {
@@ -76,10 +76,12 @@ export function configurePassport() {
               user = await storage.createUser({
                 username: username,
                 password: passwordHash,
-                displayName: username
+                // displayName removed
               });
               
-              console.log(`[AUTH] Created recovery user ${username} with ID: ${user.id}`);
+              if (user) {
+                console.log(`[AUTH] Created recovery user ${username} with ID: ${user.id}`);
+              }
             } catch (createError) {
               console.error('[AUTH] Error creating recovery user:', createError);
             }
@@ -175,7 +177,7 @@ export function configurePassport() {
       const sessionUser = {
         id: userId,
         username: userData.username,
-        displayName: userData.displayName
+        // displayName removed
       };
       
       // Add explicit delay to ensure session is saved properly
@@ -331,7 +333,7 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
         id: userData.id,
         username: userData.username,
         displayName: userData.displayName || null,
-        createdAt: null,
+        createdAt: new Date(),
         password: '' // Empty password since it's not needed for auth
       };
       
@@ -350,7 +352,7 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
         id: (req.session as any).preservedUserId,
         username: (req.session as any).preservedUsername,
         displayName: (req.session as any).preservedDisplayName || null,
-        createdAt: null,
+        createdAt: new Date(),
         password: '' // Empty password since it's not needed for auth
       };
       
@@ -616,7 +618,7 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
             id: userData.id,
             username: userData.username,
             displayName: userData.displayName || userData.username,
-            createdAt: null,
+            createdAt: new Date(),
             password: '' // Empty password since it's not needed for auth
           };
           
@@ -632,7 +634,7 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
             id: preservedUserId,
             username: preservedUsername,
             displayName: (req.session as any).preservedDisplayName || preservedUsername,
-            createdAt: null,
+            createdAt: new Date(),
             password: '' // Empty password since it's not needed for auth
           };
           
@@ -647,7 +649,8 @@ export function hasWatchlistAccess(req: Request, res: Response, next: NextFuncti
             const dbUser = storage.getUser(requestUserId);
             
             // If promise resolves, we'll use this user directly
-            dbUser.then((user: User) => {
+            dbUser.then((user: User | undefined) => {
+              if (!user) return;
               if (user) {
                 console.log(`[AUTH:WATCHLIST] Found user via direct lookup: ${user.username} (ID: ${user.id})`);
                 const { password: _, ...userWithoutPassword } = user;

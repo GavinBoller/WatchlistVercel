@@ -1,361 +1,173 @@
-// Emergency Watchlist Handlers
-// This file provides fail-safe watchlist operations that work
-// even if the normal database operations fail
-
-import { Request, Response, Router, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { storage } from './storage';
+import { executeDirectSql } from './db';
+import bcrypt from 'bcrypt';
 import { User, Movie, WatchlistEntry, WatchlistEntryWithMovie } from '@shared/schema';
-import { emergencyAuthCheck } from './emergencyAuth';
 
-const router = Router();
-
-// Helper function to get watchlist entries with direct SQL if needed
-async function getWatchlistEntriesFallback(userId: number): Promise<WatchlistEntryWithMovie[]> {
+export async function emergencyWatchlistFetch(userId: number): Promise<WatchlistEntryWithMovie[]> {
   try {
-    // First try the normal storage method
-    const entries = await storage.getWatchlistEntries(userId);
-    if (entries && entries.length >= 0) {
-      return entries;
-    }
-    
-    // If that returns undefined or null, try direct SQL
-    console.log(`[WATCHLIST] Emergency: Using direct SQL for watchlist entries`);
-    
-    const result = await executeDirectSql(
-      `SELECT we.*, m.* 
-       FROM watchlist_entries we 
-       JOIN movies m ON we.movie_id = m.id 
+    const result = await executeDirectSql<WatchlistEntryWithMovie>(
+      `SELECT we.*, m.*, p.id as platform_id, p.name as platform_name, p.is_default as platform_is_default
+       FROM watchlist_entries we
+       JOIN movies m ON we.movie_id = m.id
+       LEFT JOIN platforms p ON we.platform_id = p.id
        WHERE we.user_id = $1
        ORDER BY we.created_at DESC`,
       [userId]
     );
-    
-    if (!result || !result.rows) {
-      return [];
-    }
-    
-    // Transform rows into the expected format
-    return result.rows.map(row => {
-      const movie: Movie = {
-        id: row.movie_id,
-        tmdbId: row.tmdb_id,
-        title: row.title,
-        overview: row.overview,
-        posterPath: row.poster_path,
-        backdropPath: row.backdrop_path,
-        releaseDate: row.release_date,
-        voteAverage: row.vote_average,
-        mediaType: row.media_type || 'movie',
-        genreIds: row.genre_ids || [],
-        createdAt: row.movie_created_at || row.created_at
-      };
-      
-      const entry: WatchlistEntryWithMovie = {
-        id: row.id,
-        userId: row.user_id,
-        movieId: row.movie_id,
-        status: row.status || 'to_watch',
-        notes: row.notes || '',
-        createdAt: row.created_at,
-        updatedAt: row.updated_at,
-        movie: movie
-      };
-      
-      return entry;
-    });
+
+    return result.rows.map(row => ({
+      id: row.id,
+      userId: row.userId,
+      movieId: row.movieId,
+      platformId: row.platformId || null,
+      status: row.status || 'to_watch',
+      watchedDate: row.watchedDate || null,
+      notes: row.notes || '',
+      createdAt: row.createdAt || new Date(),
+      movie: {
+        id: row.movieId,
+        tmdbId: row.tmdbId,
+        title: row.title || '[Unknown]',
+        overview: row.overview || '',
+        posterPath: row.posterPath || '',
+        backdropPath: row.backdropPath || '',
+        releaseDate: row.releaseDate || null,
+        voteAverage: row.voteAverage || 0,
+        mediaType: row.mediaType || 'movie',
+        createdAt: row.createdAt || new Date(),
+        runtime: row.runtime || null,
+        numberOfSeasons: row.numberOfSeasons || null,
+        numberOfEpisodes: row.numberOfEpisodes || null,
+      },
+      platform: row.platformId ? {
+        id: row.platformId,
+        name: row.platform_name || 'Unknown Platform',
+        isDefault: row.platform_is_default || false,
+        userId: row.userId,
+        logoUrl: null,
+      } : null,
+    }));
   } catch (error) {
-    console.error(`[WATCHLIST] Emergency: Error getting watchlist entries:`, error);
-    return []; // Return empty array on error
+    console.error('[EMERGENCY WATCHLIST] Error fetching watchlist:', error);
+    return [];
   }
 }
 
-// Emergency get watchlist endpoint
-router.get('/watchlist/:userId', emergencyAuthCheck, async (req: Request, res: Response) => {
-  const userId = parseInt(req.params.userId);
-  
-  // Validate user owns this watchlist or is admin
-  const isOwnWatchlist = req.user && req.user.id === userId;
-  
-  if (!isOwnWatchlist) {
-    return res.status(403).json({ message: 'You do not have access to this watchlist' });
-  }
-  
-  try {
-    const entries = await getWatchlistEntriesFallback(userId);
-    return res.json(entries);
-  } catch (error) {
-    console.error(`[WATCHLIST] Emergency get error:`, error);
-    return res.status(500).json({ message: 'Failed to retrieve watchlist' });
-  }
-});
+export async function emergencyWatchlistAdd(
+  req: Request,
+  tmdbMovie: any
+): Promise<WatchlistEntryWithMovie | null> {
+  const userId = parseInt(req.params.userId, 10);
+  if (isNaN(userId)) return null;
 
-// Emergency add to watchlist endpoint
-router.post('/watchlist', emergencyAuthCheck, async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).json({ message: 'You must be logged in to add to watchlist' });
-  }
-  
+  let movie: Movie | undefined;
   try {
-    const { tmdbMovie, status, notes } = req.body;
-    
-    if (!tmdbMovie || !tmdbMovie.id) {
-      return res.status(400).json({ message: 'Invalid movie data' });
-    }
-    
-    // Check if this movie is already in the database
-    let movie = await storage.getMovieByTmdbId(tmdbMovie.id);
-    
-    // If not in database, insert it
+    movie = await storage.getMovieByTmdbId(tmdbMovie.id);
     if (!movie) {
-      try {
-        movie = await storage.createMovie({
-          tmdbId: tmdbMovie.id,
-          title: tmdbMovie.title || tmdbMovie.name || 'Unknown Title',
-          overview: tmdbMovie.overview || '',
-          posterPath: tmdbMovie.poster_path || '',
-          backdropPath: tmdbMovie.backdrop_path || '',
-          releaseDate: tmdbMovie.release_date || tmdbMovie.first_air_date || null,
-          voteAverage: tmdbMovie.vote_average || 0,
-          mediaType: tmdbMovie.media_type || 'movie',
-          genreIds: tmdbMovie.genre_ids || []
-        });
-      } catch (createMovieError) {
-        console.error(`[WATCHLIST] Create movie error:`, createMovieError);
-        
-        // Direct SQL fallback for movie creation
-        try {
-          console.log(`[WATCHLIST] Emergency movie creation via direct SQL`);
-          const result = await executeDirectSql(
-            `INSERT INTO movies (
-              tmdb_id, title, overview, poster_path, backdrop_path, 
-              release_date, vote_average, media_type, genre_ids, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
-            RETURNING *`,
-            [
-              tmdbMovie.id,
-              tmdbMovie.title || tmdbMovie.name || 'Unknown Title',
-              tmdbMovie.overview || '',
-              tmdbMovie.poster_path || '',
-              tmdbMovie.backdrop_path || '',
-              tmdbMovie.release_date || tmdbMovie.first_air_date || null,
-              tmdbMovie.vote_average || 0,
-              tmdbMovie.media_type || 'movie',
-              JSON.stringify(tmdbMovie.genre_ids || [])
-            ]
-          );
-          
-          if (result && result.rows && result.rows.length > 0) {
-            movie = result.rows[0];
-          }
-        } catch (sqlError) {
-          console.error(`[WATCHLIST] Emergency SQL insert error:`, sqlError);
-          return res.status(500).json({ message: 'Failed to add movie to database' });
-        }
+      const result = await executeDirectSql(
+        `INSERT INTO movies (tmdb_id, title, overview, poster_path, backdrop_path, release_date, vote_average, runtime, number_of_seasons, number_of_episodes, media_type, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         RETURNING *`,
+        [
+          tmdbMovie.id,
+          tmdbMovie.title || tmdbMovie.name || '[Unknown Title]',
+          tmdbMovie.overview || '',
+          tmdbMovie.poster_path || '',
+          tmdbMovie.backdrop_path || '',
+          tmdbMovie.release_date || tmdbMovie.first_air_date || null,
+          tmdbMovie.vote_average || 0,
+          tmdbMovie.runtime || null,
+          tmdbMovie.number_of_seasons || null,
+          tmdbMovie.number_of_episodes || null,
+          tmdbMovie.media_type || 'movie',
+          new Date(),
+        ]
+      );
+
+      if (result.rows.length > 0) {
+        movie = result.rows[0] as Movie;
       }
     }
-    
-    if (!movie) {
-      return res.status(500).json({ message: 'Failed to get or create movie' });
-    }
-    
-    // Check if entry already exists
-    const hasEntry = await storage.hasWatchlistEntry(req.user.id, movie.id);
-    
-    if (hasEntry) {
-      return res.status(400).json({ message: 'Movie already in watchlist' });
-    }
-    
-    // Create watchlist entry
-    try {
-      const entry: InsertWatchlistEntry = {
-        userId: req.user.id,
-        movieId: movie.id,
-        status: status || 'to_watch',
-        notes: notes || ''
+
+    if (!movie) return null;
+
+    const entry: WatchlistEntry = {
+      id: 0,
+      userId,
+      movieId: movie.id,
+      platformId: null,
+      status: 'to_watch',
+      watchedDate: null,
+      notes: '',
+      createdAt: new Date(),
+    };
+
+    const result = await executeDirectSql(
+      `INSERT INTO watchlist_entries (user_id, movie_id, platform_id, status, watched_date, notes, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [
+        userId,
+        movie.id,
+        entry.platformId,
+        entry.status,
+        entry.watchedDate,
+        entry.notes,
+        entry.createdAt,
+      ]
+    );
+
+    if (result.rows.length > 0) {
+      const row = result.rows[0] as WatchlistEntry;
+      return {
+        ...row,
+        movie,
+        platform: null,
       };
-      
-      const watchlistEntry = await storage.createWatchlistEntry(entry);
-      
-      // Get complete entry with movie data
-      const completeEntry = {
-        ...watchlistEntry,
-        movie: movie
-      };
-      
-      return res.status(201).json(completeEntry);
-    } catch (createEntryError) {
-      console.error(`[WATCHLIST] Create entry error:`, createEntryError);
-      
-      // Direct SQL fallback for watchlist entry creation
-      try {
-        console.log(`[WATCHLIST] Emergency watchlist entry creation via direct SQL`);
-        const result = await executeDirectSql(
-          `INSERT INTO watchlist_entries (
-            user_id, movie_id, status, notes, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, NOW(), NOW())
-          RETURNING *`,
-          [
-            req.user.id,
-            movie.id,
-            status || 'to_watch',
-            notes || ''
-          ]
-        );
-        
-        if (result && result.rows && result.rows.length > 0) {
-          const entry = result.rows[0];
-          const completeEntry = {
-            ...entry,
-            movie: movie
-          };
-          
-          return res.status(201).json(completeEntry);
-        }
-      } catch (sqlError) {
-        console.error(`[WATCHLIST] Emergency SQL insert error:`, sqlError);
-      }
-      
-      return res.status(500).json({ message: 'Failed to add to watchlist' });
     }
   } catch (error) {
-    console.error(`[WATCHLIST] Add to watchlist error:`, error);
-    return res.status(500).json({ message: 'Failed to add to watchlist' });
+    console.error('[EMERGENCY WATCHLIST] Error adding to watchlist:', error);
   }
-});
+  return null;
+}
 
-// EMERGENCY LOGIN ENDPOINT as backup to the primary emergency login
-router.post('/login', async (req: Request, res: Response) => {
-  console.log(`[WATCHLIST] Emergency login attempt for: ${req.body?.username}`);
-  
-  const { username, password } = req.body;
-  
-  if (!username || !password) {
-    return res.status(400).json({ message: 'Username and password required' });
-  }
-  
+export async function emergencyUserCreate(
+  username: string,
+  password: string
+): Promise<User | null> {
   try {
-    // First attempt - try standard lookup
-    let user: any = null;
-    
-    try {
-      user = await storage.getUserByUsername(username);
-      console.log(`[WATCHLIST] Emergency login - User lookup result: ${user ? 'Found' : 'Not found'}`);
-    } catch (lookupError) {
-      console.error(`[WATCHLIST] Emergency login - User lookup error:`, lookupError);
-    }
-    
-    // If standard lookup fails, try direct SQL
-    if (!user) {
-      try {
-        console.log(`[WATCHLIST] Emergency login - Trying direct SQL lookup`);
-        const result = await executeDirectSql(
-          'SELECT * FROM users WHERE LOWER(username) = LOWER($1) LIMIT 1',
-          [username]
-        );
-        
-        if (result && result.rows && result.rows.length > 0) {
-          user = result.rows[0];
-          console.log(`[WATCHLIST] Emergency login - SQL lookup successful`);
-        }
-      } catch (sqlError) {
-        console.error(`[WATCHLIST] Emergency login - SQL error:`, sqlError);
-      }
-    }
-    
-    // Special Test Account handling - create if it doesn't exist
-    if (!user && username.startsWith('Test')) {
-      console.log(`[WATCHLIST] Emergency login - Creating Test user ${username}`);
-      try {
-        // Create hash of password
-        const passwordHash = await bcrypt.hash(password, 10);
-        
-        try {
-          // First try normal creation
-          user = await storage.createUser({
-            username: username,
-            password: passwordHash,
-            displayName: username
-          });
-        } catch (createError) {
-          console.error(`[WATCHLIST] Emergency login - Normal create failed:`, createError);
-          
-          // Try direct SQL insert as fallback
-          try {
-            const result = await executeDirectSql(
-              `INSERT INTO users (username, password, display_name, created_at)
-               VALUES ($1, $2, $3, NOW())
-               RETURNING *`,
-              [username, passwordHash, username]
-            );
-            
-            if (result && result.rows && result.rows.length > 0) {
-              user = result.rows[0];
-              console.log(`[WATCHLIST] Emergency login - Created user via SQL`);
-            }
-          } catch (sqlInsertError) {
-            console.error(`[WATCHLIST] Emergency login - SQL insert error:`, sqlInsertError);
-          }
-        }
-      } catch (bcryptError) {
-        console.error(`[WATCHLIST] Emergency login - Password hash error:`, bcryptError);
-      }
-    }
-    
-    // Process login if we have a user
-    if (user) {
-      // For Test users, don't check password in emergency mode
-      let passwordValid = username.startsWith('Test');
-      
-      if (!passwordValid) {
-        try {
-          passwordValid = await bcrypt.compare(password, user.password);
-        } catch (bcryptError) {
-          console.error(`[WATCHLIST] Emergency login - Password check error:`, bcryptError);
-        }
-      }
-      
-      if (passwordValid) {
-        console.log(`[WATCHLIST] Emergency login successful for ${username}`);
-        
-        // Remove password from user object
-        const { password: _, ...userWithoutPassword } = user;
-        
-        // Set up the session
-        req.login(userWithoutPassword, (loginErr) => {
-          if (loginErr) {
-            console.error(`[WATCHLIST] Emergency login - Login error:`, loginErr);
-            
-            // Try to manually set session
-            if (req.session) {
-              req.session.authenticated = true;
-              (req.session as any).passport = { user: user.id };
-              (req.session as any).emergencyLogin = true;
-              
-              req.session.save();
-            }
-            
-            // Return success even if login failed
-            return res.status(200).json({
-              ...userWithoutPassword,
-              emergencyMode: true
-            });
-          }
-          
-          // Login was successful
-          return res.status(200).json(userWithoutPassword);
-        });
-        return;
-      } else {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-    } else {
-      return res.status(404).json({ message: 'User not found' });
+    const passwordHash = await bcrypt.hash(password, 10);
+    const result = await executeDirectSql(
+      `INSERT INTO users (username, password, role, created_at)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [username, passwordHash, 'user', new Date()]
+    );
+
+    if (result.rows.length > 0) {
+      return result.rows[0] as User;
     }
   } catch (error) {
-    console.error(`[WATCHLIST] Emergency login - Unhandled error:`, error);
-    return res.status(500).json({ message: 'Server error during login' });
+    console.error('[EMERGENCY WATCHLIST] Error creating user:', error);
   }
-});
+  return null;
+}
 
-// Export the router for use in the main application
-export const emergencyWatchlistRouter = router;
+export async function emergencyUserCheck(
+  username: string,
+  password: string
+): Promise<User | null> {
+  try {
+    const user = await storage.getUserByUsername(username);
+    if (!user) return null;
+
+    const passwordValid = await bcrypt.compare(password, user.password);
+    if (!passwordValid) return null;
+
+    return user;
+  } catch (error) {
+    console.error('[EMERGENCY WATCHLIST] Error checking user:', error);
+    return null;
+  }
+}

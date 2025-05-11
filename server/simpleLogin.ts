@@ -139,7 +139,10 @@ router.get('/direct-login/:username', async (req: Request, res: Response) => {
         createdAt: new Date()
       };
       
-      const token = generateToken(tempUser);
+      const token = generateToken({
+        ...tempUser,
+        role: 'user',
+      });
       return res.status(200).json({
         token,
         user: tempUser,

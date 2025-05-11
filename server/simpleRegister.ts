@@ -92,7 +92,7 @@ export async function simpleRegisterHandler(req: Request, res: Response) {
       user = await storage.createUser({
           username,
           password: hashedPassword,
-          displayName: displayName || username,
+          // displayName removed
           environment: userEnvironment,
         });
         console.log(`[SIMPLE REGISTER] User creation successful: ${username}`);
@@ -131,7 +131,8 @@ export async function simpleRegisterHandler(req: Request, res: Response) {
       
       // Generate JWT token
       console.log('[SIMPLE REGISTER] Generating JWT token');
-      const userResponse = createUserResponse(user);
+      if (!user) return res.status(500).json({ message: "Failed to create user" });
+const userResponse = createUserResponse(user);
       const token = generateToken(userResponse);
       
       // Return success response with token and user data

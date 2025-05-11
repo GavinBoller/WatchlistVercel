@@ -307,7 +307,11 @@ router.post("/users", async (req, res) => {
       return res.status(409).json({ message: "Username already exists" });
     }
 
-    const newUser = await storage.createUser(userData);
+    const newUser = await storage.createUser({
+      ...userData,
+      role: userData.role || 'user',
+      createdAt: userData.createdAt || new Date(),
+    });
     res.status(201).json(newUser);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -395,10 +399,9 @@ router.get("/movies/search", async (req, res) => {
         ...results,
         ...movieResponse.data.results.map((item: TMDBMovie) => ({
           ...item,
-          media_type: "movie",
+          media_type: "movie" as 'movie',
         })),
       ];
-    }
 
     if (type === "all" || type === "tv") {
       const tvResponse = await axios.get<TMDBSearchResponse>(
@@ -414,7 +417,7 @@ router.get("/movies/search", async (req, res) => {
 
       results = [
         ...results,
-        ...tvResponse.data.results.map((item: TMDBMovie) => ({ ...item, media_type: "tv" })),
+        ...tvResponse.data.results.map((item: TMDBMovie) => ({ ...item, media_type: "tv" as 'tv' })),
       ];
     }
 
@@ -554,7 +557,38 @@ router.get(
                 );
 
                 if (entryResults.rows.length > 0) {
-                  watchlistData = entryResults.rows.map((row: any) => {
+                  watchlistData = entryResults.rows.map((row: WatchlistEntryWithMovie) => ({
+                    id: row.id,
+                    userId: row.userId,
+                    movieId: row.movieId,
+                    platformId: row.platformId || null,
+                    status: row.status || 'to_watch',
+                    watchedDate: row.watchedDate || null,
+                    notes: row.notes || '',
+                    createdAt: row.createdAt || new Date(),
+                    movie: {
+                      id: row.movieId,
+                      tmdbId: row.movie.tmdbId,
+                      title: row.movie.title || '[Unknown]',
+                      overview: row.movie.overview || '',
+                      posterPath: row.movie.posterPath || '',
+                      backdropPath: row.movie.backdropPath || '',
+                      releaseDate: row.movie.releaseDate || null,
+                      voteAverage: row.movie.voteAverage || 0,
+                      runtime: row.movie.runtime || null,
+                      numberOfSeasons: row.movie.numberOfSeasons || null,
+                      numberOfEpisodes: row.movie.numberOfEpisodes || null,
+                      mediaType: row.movie.mediaType || 'movie',
+                      createdAt: row.movie.createdAt || new Date(),
+                    },
+                    platform: row.platformId ? {
+                      id: row.platformId,
+                      userId: row.userId,
+                      name: row.platform?.name || 'Unknown Platform',
+                      logoUrl: row.platform?.logoUrl || null,
+                      isDefault: row.platform?.isDefault || 0,
+                    } : null,
+                  }));
                     const movie = {
                       id: row.id,
                       tmdbId: row.tmdb_id,
@@ -883,7 +917,7 @@ router.post("/watchlist", async (req, res) => {
           });
 
           console.log(
-            `[WATCHLIST] Successfully created new movie: ${movie.title} (ID: ${movie.id})`
+            `[WATCHLIST] Successfully created new movie: ${movie?.title || '[Unknown]'} (ID: ${movie?.id || 'unknown'})`
           );
           break;
         } catch (movieError) {
@@ -1031,7 +1065,7 @@ router.post("/watchlist", async (req, res) => {
         });
 
         console.log(
-          `[WATCHLIST] Successfully added movie ${movie.title} to watchlist for user ${userId} (Entry ID: ${entry.id})`
+         `[WATCHLIST] Successfully added movie ${movie?.title || '[Unknown]'} to watchlist for user ${userId} (Entry ID: ${entry?.id || 'unknown'})`
         );
         break;
       } catch (entryError) {
@@ -1127,12 +1161,12 @@ router.post("/watchlist", async (req, res) => {
           "[WATCHLIST] Critical database error detected, checking connection status..."
         );
         // Pool not needed; handled by executeDirectSql
-        if (pool && pool.totalCount !== undefined) {
-          const connStatus = {
-            totalCount: pool.totalCount,
-            idleCount: pool.idleCount,
-            waitingCount: pool.waitingCount,
-          };
+       // if (pool && pool.totalCount !== undefined) {
+         // const connStatus = {
+           // totalCount: pool.totalCount,
+            //idleCount: pool.idleCount,
+            //waitingCount: pool.waitingCount,
+          //};
           console.error("[WATCHLIST] Connection pool status:", connStatus);
           if (process.env.NODE_ENV !== "production") {
             userMessage += ` Pool stats: Total=${connStatus.totalCount}, Idle=${connStatus.idleCount}, Waiting=${connStatus.waitingCount}`;
