@@ -39,3 +39,19 @@ export async function executeDirectSql<T>(
     await pool.end();
   }
 }
+
+export async function ensureDatabaseReady(): Promise<boolean> {
+  try {
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    });
+    const client = await pool.connect();
+    client.release();
+    await pool.end();
+    return true;
+  } catch (error) {
+    console.error("Database connection check failed:", error);
+    return false;
+  }
+}
