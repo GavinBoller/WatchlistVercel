@@ -55,7 +55,7 @@ export const storage = {
       posterPath: movieData.posterPath || null,
       backdropPath: movieData.backdropPath || null,
       releaseDate: movieData.releaseDate || null,
-      voteAverage: movieData.voteAverage || 0,
+      voteAverage: String(movieData.voteAverage || 0),
       runtime: movieData.runtime || null,
       numberOfSeasons: movieData.numberOfSeasons || null,
       numberOfEpisodes: movieData.numberOfEpisodes || null,
@@ -99,11 +99,15 @@ export const storage = {
 
   async createWatchlistEntry(entryData: Omit<schema.WatchlistEntry, 'id' | 'createdAt'>) {
     const db = await getDb();
+    const status = entryData.status || 'to_watch';
+    if (!['to_watch', 'watching', 'watched'].includes(status)) {
+      throw new Error(`Invalid status: ${status}`);
+    }
     const result = await db.insert(watchlistEntries).values({
       userId: entryData.userId,
       movieId: entryData.movieId,
       platformId: entryData.platformId || null,
-      status: entryData.status || 'to_watch',
+      status: status as 'to_watch' | 'watching' | 'watched',
       watchedDate: entryData.watchedDate || null,
       notes: entryData.notes || null,
       createdAt: new Date(),
@@ -113,12 +117,18 @@ export const storage = {
 
   async updateWatchlistEntry(
     entryId: number,
-    updates: Partial<schema.WatchlistEntry>
+    updates: Partial<Omit<schema.WatchlistEntry, 'id' | 'createdAt'>>
   ) {
     const db = await getDb();
+    if (updates.status && !['to_watch', 'watching', 'watched'].includes(updates.status)) {
+      throw new Error(`Invalid status: ${updates.status}`);
+    }
     const result = await db
       .update(watchlistEntries)
-      .set(updates)
+      .set({
+        ...updates,
+        status: updates.status ? (updates.status as 'to_watch' | 'watching' | 'watched') : undefined,
+      })
       .where(eq(watchlistEntries.id, entryId))
       .returning();
     return result.length > 0 ? result[0] : undefined;
