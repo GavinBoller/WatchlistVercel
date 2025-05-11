@@ -3,17 +3,26 @@
       "target": "ES2020",
       "module": "CommonJS",
       "moduleResolution": "Node",
-      "rootDir": "..",
+      "rootDir": ".",
       "outDir": "./dist",
       "strict": false,
       "esModuleInterop": true,
       "skipLibCheck": true,
       "forceConsistentCasingInFileNames": true,
+      "noEmitOnError": true,
       "baseUrl": "..",
       "paths": {
         "@shared/*": ["shared/*"]
       }
     },
-    "include": ["server/**/*.ts", "shared/**/*.ts"],
-    "exclude": ["node_modules", "dist"]
+    "include": [
+      "**/*.ts",
+      "../shared/**/*.ts"
+    ],
+    "exclude": [
+      "node_modules",
+      "dist",
+      "**/*.js",
+      "**/*.bak"
+    ]
   }
