@@ -660,8 +660,27 @@ router.get('/jwt/one-click-login/:username', async (req: Request, res: Response)
           `);
         }
       }
-    } catch (sqlError) {
-      console.error(`[JWT AUTH] SQL method failed: ${username}`, sqlError);
+      try {
+        // Existing code for /register or /login
+        const result = await storage.getUserByUsername(username);
+        if (result) {
+          return res.status(409).json({ message: "Username already exists" });
+        }
+        const newUser = await storage.createUser({
+          username,
+          password: passwordHash,
+          role: 'user',
+          createdAt: new Date(),
+        });
+        if (!newUser) {
+          return res.status(500).json({ message: "Failed to create user" });
+        }
+        const userResponse = createUserResponse(newUser);
+        res.status(201).json(userResponse);
+      } catch (sqlError) {
+        console.error("Error in registration:", sqlError);
+        res.status(500).json({ message: "Registration failed" });
+      }
       // Continue to client-side method
     }
     

@@ -451,9 +451,7 @@ router.get(
       const isDbReady = await ensureDatabaseReady();
 
       if (!isDbReady) {
-        console.warn(
-          "[WATCHLIST] Database connection is not ready - using fallback mechanisms"
-        );
+        console.warn("[WATCHLIST] Database connection is not ready - using fallback mechanisms");
       } else {
         console.log("[WATCHLIST] Database connection verified successfully");
       }
@@ -485,22 +483,16 @@ router.get(
 
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          console.log(
-            `[WATCHLIST] Attempting to fetch watchlist (attempt ${attempt}/3)...`
-          );
+          console.log(`[WATCHLIST] Attempting to fetch watchlist (attempt ${attempt}/3)...`);
 
           const user = await storage.getUser(userId);
 
           if (user) {
             userFound = true;
-            console.log(
-              `[WATCHLIST] Found user: ${user.username} (ID: ${userId})`
-            );
+            console.log(`[WATCHLIST] Found user: ${user.username} (ID: ${userId})`);
 
             watchlistData = await storage.getWatchlistEntries(userId);
-            console.log(
-              `[WATCHLIST] Standard fetch successful: ${watchlistData.length} entries`
-            );
+            console.log(`[WATCHLIST] Standard fetch successful: ${watchlistData.length} entries`);
 
             if (isProd && req.session) {
               (req.session as any).lastWatchlistUser = userId;
@@ -514,25 +506,18 @@ router.get(
             fetchSuccess = true;
             break;
           } else {
-            console.log(
-              `[WATCHLIST] User with ID ${userId} not found in lookup attempt ${attempt}`
-            );
+            console.log(`[WATCHLIST] User with ID ${userId} not found in lookup attempt ${attempt}`);
 
             if (attempt === 3) {
               return res.status(404).json({ message: "User not found" });
             }
           }
         } catch (primaryError) {
-          console.error(
-            `[WATCHLIST] Error in watchlist fetch attempt ${attempt}:`,
-            primaryError
-          );
+          console.error(`[WATCHLIST] Error in watchlist fetch attempt ${attempt}:`, primaryError);
 
           if (attempt === 3) {
             try {
-              console.log(
-                `[WATCHLIST] Attempting direct SQL watchlist fetch as last resort...`
-              );
+              console.log(`[WATCHLIST] Attempting direct SQL watchlist fetch as last resort...`);
 
               const userResults = await executeDirectSql(
                 `SELECT * FROM users WHERE id = $1`,
@@ -542,9 +527,7 @@ router.get(
               if (userResults.rows.length > 0) {
                 userFound = true;
                 const userData = userResults.rows[0];
-                console.log(
-                  `[WATCHLIST] Found user via direct SQL: ${userData.username} (ID: ${userData.id})`
-                );
+                console.log(`[WATCHLIST] Found user via direct SQL: ${userData.username} (ID: ${userData.id})`);
 
                 const entryResults = await executeDirectSql(
                   `SELECT we.*, m.*, p.id as platform_id, p.name as platform_name, p.is_default as platform_is_default
@@ -581,49 +564,16 @@ router.get(
                       mediaType: row.movie.mediaType || 'movie',
                       createdAt: row.movie.createdAt || new Date(),
                     },
-                    platform: row.platformId ? {
-                      id: row.platformId,
-                      userId: row.userId,
-                      name: row.platform?.name || 'Unknown Platform',
-                      logoUrl: row.platform?.logoUrl || null,
-                      isDefault: row.platform?.isDefault || 0,
-                    } : null,
+                    platform: row.platformId
+                      ? {
+                          id: row.platformId,
+                          userId: row.userId,
+                          name: row.platform?.name || 'Unknown Platform',
+                          logoUrl: row.platform?.logoUrl || null,
+                          isDefault: row.platform?.isDefault || 0,
+                        }
+                      : null,
                   }));
-                    const movie = {
-                      id: row.id,
-                      tmdbId: row.tmdb_id,
-                      title: row.title || "[Unknown]",
-                      overview: row.overview || "",
-                      posterPath: row.poster_path || "",
-                      backdropPath: row.backdrop_path || "",
-                      releaseDate: row.release_date || null,
-                      voteAverage: row.vote_average || 0,
-                      mediaType: row.media_type || "movie",
-                      createdAt: row.created_at || new Date().toISOString(),
-                    };
-
-                    let platform = null;
-                    if (row.platform_id) {
-                      platform = {
-                        id: row.platform_id,
-                        name: row.platform_name || "Unknown Platform",
-                        isDefault: row.platform_is_default || false,
-                      };
-                    }
-
-                    return {
-                      id: row.id,
-                      userId: row.user_id,
-                      movieId: row.movie_id,
-                      platformId: row.platform_id || null,
-                      status: row.status || "to_watch",
-                      watchedDate: row.watched_date || null,
-                      notes: row.notes || "",
-                      createdAt: row.created_at || new Date().toISOString(),
-                      movie,
-                      platform,
-                    };
-                  });
 
                   console.log(
                     `[WATCHLIST] Direct SQL watchlist fetch successful, found ${watchlistData.length} entries`
@@ -637,16 +587,11 @@ router.get(
                   fetchSuccess = true;
                 }
               } else {
-                console.log(
-                  `[WATCHLIST] User with ID ${userId} not found via direct SQL`
-                );
+                console.log(`[WATCHLIST] User with ID ${userId} not found via direct SQL`);
                 return res.status(404).json({ message: "User not found" });
               }
             } catch (directSqlError) {
-              console.error(
-                `[WATCHLIST] Direct SQL watchlist fetch failed:`,
-                directSqlError
-              );
+              console.error(`[WATCHLIST] Direct SQL watchlist fetch failed:`, directSqlError);
               console.warn(
                 `[WATCHLIST] All direct watchlist fetch methods failed, trying session recovery`
               );
@@ -666,9 +611,7 @@ router.get(
         const storedUserId = (req.session as any).lastWatchlistUser;
 
         if (storedUserId === userId) {
-          console.log(
-            `[WATCHLIST] Attempting recovery from session data for user ${userId}`
-          );
+          console.log(`[WATCHLIST] Attempting recovery from session data for user ${userId}`);
           const backupCount = (req.session as any).lastWatchlistCount || 0;
           const backupTime = (req.session as any).lastWatchlistTime || 0;
           const ageInMinutes = (Date.now() - backupTime) / (1000 * 60);
@@ -685,8 +628,7 @@ router.get(
 
             return res.status(206).json({
               recoveryMode: true,
-              message:
-                "Watchlist data temporarily unavailable, recovery information provided",
+              message: "Watchlist data temporarily unavailable, recovery information provided",
               expectedCount: backupCount,
               recoveryAge: ageInMinutes,
               entries: [],
@@ -782,9 +724,7 @@ router.post("/watchlist", async (req, res) => {
     const isDbReady = await ensureDatabaseReady();
 
     if (!isDbReady) {
-      console.warn(
-        "[WATCHLIST] Database connection is not ready - using fallback mechanisms"
-      );
+      console.warn("[WATCHLIST] Database connection is not ready - using fallback mechanisms");
     } else {
       console.log("[WATCHLIST] Database connection verified successfully");
     }
@@ -802,9 +742,7 @@ router.post("/watchlist", async (req, res) => {
           try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET || "movie-watchlist-secure-jwt-secret-key") as any;
             if (decoded) {
-              console.log(
-                `[WATCHLIST] JWT auth successful for user: ${decoded.username}`
-              );
+              console.log(`[WATCHLIST] JWT auth successful for user: ${decoded.username}`);
               req.user = decoded;
             }
           } catch (tokenError) {
@@ -824,9 +762,7 @@ router.post("/watchlist", async (req, res) => {
 
     const authUserName = (req.user as User).username || "Unknown";
     const authUserId = (req.user as User).id || -1;
-    console.log(
-      `[WATCHLIST] User authenticated for watchlist action: ${authUserName} (ID: ${authUserId})`
-    );
+    console.log(`[WATCHLIST] User authenticated for watchlist action: ${authUserName} (ID: ${authUserId})`);
 
     console.log("[WATCHLIST] Raw request body:", JSON.stringify(req.body, null, 2));
 
@@ -843,9 +779,7 @@ router.post("/watchlist", async (req, res) => {
       console.log(`[WATCHLIST] Extracted tmdbId ${tmdbId} from tmdbMovie`);
     }
 
-    console.log(
-      `[WATCHLIST] Parsed values: userId=${userId}, tmdbId=${tmdbId}, status=${status}`
-    );
+    console.log(`[WATCHLIST] Parsed values: userId=${userId}, tmdbId=${tmdbId}, status=${status}`);
 
     if (!userId || !tmdbId || !tmdbData) {
       const missingFields = [];
@@ -865,9 +799,7 @@ router.post("/watchlist", async (req, res) => {
 
     const authId = (req.user as User).id;
     if (authId !== userId) {
-      console.log(
-        `[WATCHLIST] Auth mismatch: authUser.id=${authId}, userId=${userId}`
-      );
+      console.log(`[WATCHLIST] Auth mismatch: authUser.id=${authId}, userId=${userId}`);
       return res.status(403).json({
         message: "You can only add movies to your own watchlist",
       });
@@ -877,15 +809,10 @@ router.post("/watchlist", async (req, res) => {
     try {
       movie = await storage.getMovieByTmdbId(tmdbId);
       console.log(
-        `[WATCHLIST] Movie lookup result for TMDB ID ${tmdbId}: ${
-          movie ? "Found" : "Not found"
-        }`
+        `[WATCHLIST] Movie lookup result for TMDB ID ${tmdbId}: ${movie ? "Found" : "Not found"}`
       );
     } catch (movieLookupError) {
-      console.error(
-        `[WATCHLIST] Error looking up movie by TMDB ID ${tmdbId}:`,
-        movieLookupError
-      );
+      console.error(`[WATCHLIST] Error looking up movie by TMDB ID ${tmdbId}:`, movieLookupError);
     }
 
     if (!movie) {
@@ -897,9 +824,7 @@ router.post("/watchlist", async (req, res) => {
 
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          console.log(
-            `[WATCHLIST] Creating movie record (attempt ${attempt}/3)...`
-          );
+          console.log(`[WATCHLIST] Creating movie record (attempt ${attempt}/3)...`);
           movie = await storage.createMovie({
             tmdbId,
             title: title || "[Unknown Title]",
@@ -909,10 +834,8 @@ router.post("/watchlist", async (req, res) => {
             releaseDate: releaseDate || null,
             voteAverage: tmdbData.vote_average || 0,
             runtime: tmdbData.runtime || null,
-            numberOfSeasons:
-              mediaType === "tv" ? tmdbData.number_of_seasons || null : null,
-            numberOfEpisodes:
-              mediaType === "tv" ? tmdbData.number_of_episodes || null : null,
+            numberOfSeasons: mediaType === "tv" ? tmdbData.number_of_seasons || null : null,
+            numberOfEpisodes: mediaType === "tv" ? tmdbData.number_of_episodes || null : null,
             mediaType,
           });
 
@@ -921,19 +844,14 @@ router.post("/watchlist", async (req, res) => {
           );
           break;
         } catch (movieError) {
-          console.error(
-            `[WATCHLIST] Error creating movie (attempt ${attempt}/3):`,
-            movieError
-          );
+          console.error(`[WATCHLIST] Error creating movie (attempt ${attempt}/3):`, movieError);
 
           if (attempt === 3) {
             try {
-              console.log(
-                `[WATCHLIST] Attempting direct SQL movie creation as last resort...`
-              );
+              console.log(`[WATCHLIST] Attempting direct SQL movie creation as last resort...`);
               const result = await executeDirectSql(
-                `INSERT INTO movies (tmdb_id, title, overview, poster_path, backdrop_path, release_date, vote_average, runtime, number_of_seasons, number_of_episodes, media_type) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+                `INSERT INTO movies (tmdb_id, title, overview, poster_path, backdrop_path, release_date, vote_average, runtime, number_of_seasons, number_of_episodes, media_type, created_at) 
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
                  RETURNING *`,
                 [
                   tmdbId,
@@ -947,6 +865,7 @@ router.post("/watchlist", async (req, res) => {
                   mediaType === "tv" ? tmdbData.number_of_seasons || null : null,
                   mediaType === "tv" ? tmdbData.number_of_episodes || null : null,
                   mediaType,
+                  new Date(),
                 ]
               );
 
@@ -968,16 +887,11 @@ router.post("/watchlist", async (req, res) => {
                   createdAt: row.created_at,
                 };
 
-                console.log(
-                  `[WATCHLIST] Direct SQL movie creation successful (ID: ${movie.id})`
-                );
+                console.log(`[WATCHLIST] Direct SQL movie creation successful (ID: ${movie.id})`);
                 break;
               }
             } catch (directSqlError) {
-              console.error(
-                `[WATCHLIST] Direct SQL movie creation failed:`,
-                directSqlError
-              );
+              console.error(`[WATCHLIST] Direct SQL movie creation failed:`, directSqlError);
 
               if (process.env.NODE_ENV === "production") {
                 const tempId = new Date().getTime();
@@ -991,21 +905,16 @@ router.post("/watchlist", async (req, res) => {
                   releaseDate: releaseDate || null,
                   voteAverage: tmdbData.vote_average || 0,
                   runtime: tmdbData.runtime || null,
-                  numberOfSeasons:
-                    mediaType === "tv" ? tmdbData.number_of_seasons || null : null,
-                  numberOfEpisodes:
-                    mediaType === "tv" ? tmdbData.number_of_episodes || null : null,
+                  numberOfSeasons: mediaType === "tv" ? tmdbData.number_of_seasons || null : null,
+                  numberOfEpisodes: mediaType === "tv" ? tmdbData.number_of_episodes || null : null,
                   mediaType,
                   createdAt: new Date().toISOString(),
                 };
 
-                console.log(
-                  `[WATCHLIST] Using temporary movie object with ID ${tempId}`
-                );
+                console.log(`[WATCHLIST] Using temporary movie object with ID ${tempId}`);
               } else {
                 return res.status(500).json({
-                  message:
-                    "Failed to create movie record after multiple attempts",
+                  message: "Failed to create movie record after multiple attempts",
                   details: "Database connection may be unstable",
                 });
               }
@@ -1016,9 +925,7 @@ router.post("/watchlist", async (req, res) => {
         }
       }
     } else {
-      console.log(
-        `[WATCHLIST] Found existing movie: ${movie.title} (ID: ${movie.id})`
-      );
+      console.log(`[WATCHLIST] Found existing movie: ${movie.title} (ID: ${movie.id})`);
     }
 
     if (!movie) {
@@ -1031,15 +938,10 @@ router.post("/watchlist", async (req, res) => {
     try {
       exists = await storage.hasWatchlistEntry(userId, movie.id);
       console.log(
-        `[WATCHLIST] Duplicate check: Movie ${movie.id} ${
-          exists ? "already exists" : "does not exist"
-        } in user ${userId}'s watchlist`
+        `[WATCHLIST] Duplicate check: Movie ${movie.id} ${exists ? "already exists" : "does not exist"} in user ${userId}'s watchlist`
       );
     } catch (existsError) {
-      console.error(
-        `[WATCHLIST] Error checking for existing watchlist entry:`,
-        existsError
-      );
+      console.error(`[WATCHLIST] Error checking for existing watchlist entry:`, existsError);
     }
 
     if (exists) {
@@ -1051,9 +953,7 @@ router.post("/watchlist", async (req, res) => {
     let entry;
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        console.log(
-          `[WATCHLIST] Creating watchlist entry (attempt ${attempt}/3)...`
-        );
+        console.log(`[WATCHLIST] Creating watchlist entry (attempt ${attempt}/3)...`);
 
         entry = await storage.createWatchlistEntry({
           userId,
@@ -1065,25 +965,20 @@ router.post("/watchlist", async (req, res) => {
         });
 
         console.log(
-         `[WATCHLIST] Successfully added movie ${movie?.title || '[Unknown]'} to watchlist for user ${userId} (Entry ID: ${entry?.id || 'unknown'})`
+          `[WATCHLIST] Successfully added movie ${movie?.title || '[Unknown]'} to watchlist for user ${userId} (Entry ID: ${entry?.id || 'unknown'})`
         );
         break;
       } catch (entryError) {
-        console.error(
-          `[WATCHLIST] Error creating watchlist entry (attempt ${attempt}/3):`,
-          entryError
-        );
+        console.error(`[WATCHLIST] Error creating watchlist entry (attempt ${attempt}/3):`, entryError);
 
         if (attempt === 3) {
           try {
-            console.log(
-              `[WATCHLIST] Attempting direct SQL watchlist entry creation as last resort...`
-            );
+            console.log(`[WATCHLIST] Attempting direct SQL watchlist entry creation as last resort...`);
             const result = await executeDirectSql(
-              `INSERT INTO watchlist_entries (user_id, movie_id, platform_id, status, watched_date, notes) 
-               VALUES ($1, $2, $3, $4, $5, $6) 
+              `INSERT INTO watchlist_entries (user_id, movie_id, platform_id, status, watched_date, notes, created_at) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7) 
                RETURNING *`,
-              [userId, movie.id, platformId, status, watchedDate, notes]
+              [userId, movie.id, platformId, status, watchedDate, notes, new Date()]
             );
 
             if (result.rows.length > 0) {
@@ -1104,10 +999,7 @@ router.post("/watchlist", async (req, res) => {
               break;
             }
           } catch (directSqlError) {
-            console.error(
-              `[WATCHLIST] Direct SQL watchlist entry creation failed:`,
-              directSqlError
-            );
+            console.error(`[WATCHLIST] Direct SQL watchlist entry creation failed:`, directSqlError);
 
             if (process.env.NODE_ENV === "production") {
               return res.status(202).json({
@@ -1122,8 +1014,7 @@ router.post("/watchlist", async (req, res) => {
               });
             } else {
               return res.status(500).json({
-                message:
-                  "Failed to add to watchlist after multiple attempts",
+                message: "Failed to add to watchlist after multiple attempts",
                 details: "Database connection may be unstable",
               });
             }
@@ -1134,9 +1025,7 @@ router.post("/watchlist", async (req, res) => {
       }
     }
 
-    console.log(
-      `[WATCHLIST] Added movie ${movie.title} to watchlist for user ${userId}`
-    );
+    console.log(`[WATCHLIST] Added movie ${movie.title} to watchlist for user ${userId}`);
 
     return res.status(201).json(entry);
   } catch (error) {
@@ -1156,28 +1045,7 @@ router.post("/watchlist", async (req, res) => {
       errorMessage.includes("timeout")
     ) {
       userMessage = "Database connection issue detected. Please try again later.";
-      try {
-        console.error(
-          "[WATCHLIST] Critical database error detected, checking connection status..."
-        );
-        // Pool not needed; handled by executeDirectSql
-       // if (pool && pool.totalCount !== undefined) {
-         // const connStatus = {
-           // totalCount: pool.totalCount,
-            //idleCount: pool.idleCount,
-            //waitingCount: pool.waitingCount,
-          //};
-          console.error("[WATCHLIST] Connection pool status:", connStatus);
-          if (process.env.NODE_ENV !== "production") {
-            userMessage += ` Pool stats: Total=${connStatus.totalCount}, Idle=${connStatus.idleCount}, Waiting=${connStatus.waitingCount}`;
-          }
-        }
-      } catch (poolError) {
-        console.error(
-          "[WATCHLIST] Failed to check connection pool status:",
-          poolError
-        );
-      }
+      statusCode = 503;
     } else if (
       errorMessage.includes("not found") ||
       errorMessage.includes("404")
@@ -1235,8 +1103,7 @@ router.post("/watchlist", async (req, res) => {
       statusCode = 202;
       errorResponse.pending = true;
       errorResponse.retry = true;
-      errorResponse.message =
-        "Request accepted but processing delayed due to temporary issues";
+      errorResponse.message = "Request accepted but processing delayed due to temporary issues";
     }
 
     res.status(statusCode).json(errorResponse);

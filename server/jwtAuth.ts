@@ -23,8 +23,13 @@ if (process.env.JWT_SECRET) {
   console.log('[JWT] Using default JWT secret for development');
 }
 
-// Omit password when creating payload for JWT
-type UserPayload = Omit<User, 'password'>;
+// Define UserPayload with additional properties
+interface UserPayload {
+  id: number;
+  username: string;
+  displayName?: string;
+  environment?: string;
+}
 
 /**
  * Generate a JWT token for the authenticated user

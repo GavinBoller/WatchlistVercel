@@ -1209,8 +1209,8 @@ router.post('/register', async (req: Request, res: Response) => {
     }
     
     // Return user without password
-    const { if (!newUser) return res.status(500).json({ message: "Failed to create user" });
-    const { password, ...userWithoutPassword } = newUser;
+    if (!newUser) return res.status(500).json({ message: "Failed to create user" });
+const { password, ...userWithoutPassword } = newUser;
     
     // Automatically log the user in after registration with enhanced session saving
     console.log('[REGISTER] Attempting to log in user after registration');

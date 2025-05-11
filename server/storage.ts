@@ -188,4 +188,8 @@ async function updatePlatform(
 async function deletePlatform(platformId: number) {
   const db = await getDb();
   const result = await db
-    .delete(platform
+    .delete(platforms)
+    .where(eq(platforms.id, platformId))
+    .returning();
+  return result.length > 0;
+}
