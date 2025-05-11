@@ -402,6 +402,7 @@ router.get("/movies/search", async (req, res) => {
           media_type: "movie" as 'movie',
         })),
       ];
+    }
 
     if (type === "all" || type === "tv") {
       const tvResponse = await axios.get<TMDBSearchResponse>(
@@ -449,17 +450,12 @@ router.get(
       console.log("[WATCHLIST] Verifying database connection before operation...");
       const { ensureDatabaseReady } = await import("./db");
       const isDbReady = await ensureDatabaseReady();
-
       if (!isDbReady) {
         console.warn("[WATCHLIST] Database connection is not ready - using fallback mechanisms");
       } else {
         console.log("[WATCHLIST] Database connection verified successfully");
       }
-    } catch (dbCheckError) {
-      console.error("[WATCHLIST] Error verifying database connection:", dbCheckError);
-    }
 
-    try {
       const userId = parseInt(req.params.userId, 10);
       console.log(`[WATCHLIST] Fetching watchlist for user ID: ${userId}`);
 
