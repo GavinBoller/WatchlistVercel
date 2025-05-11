@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Watchlist Icon">
+  
+  <!-- iOS icon support -->
+  <link rel="apple-touch-icon" href="generated-icon.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="generated-icon.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="generated-icon.png">
+  <link rel="icon" type="image/png" href="generated-icon.png">
+  
+  <title>Watchlist Icon Download</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #141414;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    h1 {
+      font-size: 24px;
+      margin-bottom: 30px;
+    }
+    
+    .icon-container {
+      margin-bottom: 30px;
+    }
+    
+    .icon-preview {
+      width: 180px;
+      height: 180px;
+      margin-bottom: 20px;
+      border-radius: 22%;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    }
+    
+    .instructions {
+      max-width: 500px;
+      margin: 0 auto;
+      line-height: 1.6;
+      font-size: 16px;
+    }
+    
+    code {
+      font-family: 'SF Mono', monospace;
+      background-color: rgba(255, 255, 255, 0.1);
+      padding: 4px 6px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .steps {
+      text-align: left;
+      margin-top: 20px;
+    }
+    
+    .steps li {
+      margin-bottom: 10px;
+    }
+    
+    .download-btn {
+      background-color: #E50914;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 20px;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    @media (prefers-color-scheme: light) {
+      body {
+        background-color: #f5f5f7;
+        color: #1d1d1f;
+      }
+      
+      code {
+        background-color: rgba(0, 0, 0, 0.05);
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Watchlist App Icon</h1>
+  
+  <div class="icon-container">
+    <div class="icon-preview">
+      <img src="generated-icon.png" alt="Watchlist Icon" width="180" height="180">
+    </div>
+  </div>
+  
+  <div class="instructions">
+    <p>For iPhone users: Add this icon to your home screen for easy access to the Watchlist app.</p>
+    
+    <div class="steps">
+      <ol>
+        <li>Tap the <code>Share</code> button in Safari</li>
+        <li>Scroll down and tap <code>Add to Home Screen</code></li>
+        <li>Tap <code>Add</code> in the top right corner</li>
+      </ol>
+    </div>
+    
+    <a href="generated-icon.png" download="watchlist-icon.png" class="download-btn">
+      Download Icon
+    </a>
+  </div>
+  
+  <script>
+    // Add dynamic iOS detection
+    document.addEventListener('DOMContentLoaded', function() {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      if (isIOS) {
+        document.querySelector('.steps').style.display = 'block';
+      } else {
+        document.querySelector('.steps').innerHTML = '<p>You\'re not using an iOS device. To get the icon for iOS, view this page on an iPhone or iPad.</p>';
+      }
+    });
+  </script>
+</body>
+</html>
