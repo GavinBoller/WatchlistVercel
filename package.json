@@ -10,7 +10,7 @@
     "build:server": "tsc -p server/tsconfig.json",
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
     "dev:client": "cd client && vite",
-    "dev:server": "nodemon --exec 'node --loader ts-node/esm' server/index.ts",
+    "dev:server": "tsc -p server/tsconfig.json && nodemon server/index.js",
     "check": "tsc",
     "db:push": "drizzle-kit push"
   },
