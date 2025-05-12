@@ -3,7 +3,10 @@ import { storage } from './storage';
 import { insertUserSchema, UserResponse } from '@shared/schema';
 import bcrypt from 'bcryptjs';
 import { generateToken } from './jwtAuth';
-import { executeDirectSql } from './db';
+import { Pool } from 'pg';
+import { DATABASE_URL } from './db';
+
+const pool = new Pool({ connectionString: DATABASE_URL });
 
 const router = Router();
 
@@ -25,13 +28,13 @@ router.post('/register', async (req: Request, res: Response) => {
         VALUES ($1, $2, $3, $4)
         RETURNING id, username, displayName, role, createdAt
       `;
-      const result = await executeDirectSql(query, [
+      const result = await pool.query(query, [
         username,
         hashedPassword,
         userData.displayName,
         new Date(),
       ]);
-      const newUser = result[0] as UserResponse;
+      const newUser = result.rows[0] as UserResponse;
       const token = generateToken(newUser);
       return res.status(201).json({ user: newUser, token });
     }

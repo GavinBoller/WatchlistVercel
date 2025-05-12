@@ -33,7 +33,7 @@ router.get('/watchlist/:userId', async (req: Request, res: Response) => {
     const entries = await storage.getWatchlist(userId);
     const watchlist: WatchlistEntryWithMovie[] = entries.map(entry => ({
       ...entry,
-      movie: { id: entry.movieId } as any, // Simplified
+      movie: { id: entry.movieId } as any,
     }));
     res.status(200).json(watchlist);
   } catch (error) {
@@ -47,7 +47,12 @@ router.post('/movies', async (req: Request, res: Response) => {
     const movieData = insertMovieSchema.parse(req.body);
     const newMovie = await storage.addMovie({
       ...movieData,
+      title: movieData.title || '',
+      tmdbId: movieData.tmdbId || 0,
       createdAt: new Date(),
+      genre: movieData.genre || [],
+      platforms: movieData.platforms || [],
+      cast: movieData.cast || [],
     });
     res.status(201).json(newMovie);
   } catch (error) {
