@@ -2,7 +2,7 @@ import * as schema from '@shared/schema';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { DATABASE_URL } from './db';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 
 const pool = new Pool({ connectionString: DATABASE_URL });
 export const db = drizzle(pool, { schema });
@@ -38,8 +38,10 @@ export const storage = {
     const result = await db
       .select()
       .from(schema.watchlistEntries)
-      .where(eq(schema.watchlistEntries.userId, userId))
-      .where(eq(schema.watchlistEntries.movieId, movieId))
+      .where(and(
+        eq(schema.watchlistEntries.userId, userId),
+        eq(schema.watchlistEntries.movieId, movieId)
+      ))
       .limit(1);
     return result[0];
   },
@@ -61,16 +63,20 @@ export const storage = {
     const result = await db
       .update(schema.watchlistEntries)
       .set(entry)
-      .where(eq(schema.watchlistEntries.userId, userId))
-      .where(eq(schema.watchlistEntries.movieId, movieId))
+      .where(and(
+        eq(schema.watchlistEntries.userId, userId),
+        eq(schema.watchlistEntries.movieId, movieId)
+      ))
       .returning();
     return result[0];
   },
   async deleteWatchlistEntry(userId: number, movieId: number) {
     const result = await db
       .delete(schema.watchlistEntries)
-      .where(eq(schema.watchlistEntries.userId, userId))
-      .where(eq(schema.watchlistEntries.movieId, movieId))
+      .where(and(
+        eq(schema.watchlistEntries.userId, userId),
+        eq(schema.watchlistEntries.movieId, movieId)
+      ))
       .returning();
     return result[0];
   },

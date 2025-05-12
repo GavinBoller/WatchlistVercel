@@ -2,67 +2,102 @@ import { Router, Request, Response } from 'express';
 import { storage } from './storage';
 import { insertUserSchema, UserResponse } from '@shared/schema';
 import bcrypt from 'bcryptjs';
-import passport from 'passport';
+import { generateToken } from './jwtAuth';
+import { executeDirectSql } from './db';
 
 const router = Router();
 
-router.post('/login', async (req: Request, res: Response) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password are required' });
-  }
-
-  const user = await storage.getUserByUsername(username);
-  if (!user || !(await bcrypt.compare(password, user.password))) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-
-  const userWithoutPassword: UserResponse = {
-    id: user.id,
-    username: user.username,
-    displayName: user.displayName,
-    role: user.role,
-    createdAt: user.createdAt,
-  };
-
-  req.login(userWithoutPassword, (loginErr) => {
-    if (loginErr) {
-      return res.status(500).json({ error: 'Login failed' });
-    }
-    return res.json(userWithoutPassword);
-  });
-});
-
 router.post('/register', async (req: Request, res: Response) => {
-  const userData = insertUserSchema.parse(req.body);
-  const existingUser = await storage.getUserByUsername(userData.username);
-  if (existingUser) {
-    return res.status(409).json({ error: 'Username already exists' });
-  }
+  try {
+    const userData = insertUserSchema.parse(req.body);
+    const hashedPassword = await bcrypt.hash(userData.password, 10);
+    const username = userData.username;
 
-  const hashedPassword = await bcrypt.hash(userData.password, 10);
-  const newUser = await storage.createUser({
-    username: userData.username,
-    password: hashedPassword,
-    role: userData.role || 'user',
-    displayName: userData.displayName,
-    createdAt: userData.createdAt || new Date(),
-  });
-
-  const userWithoutPassword: UserResponse = {
-    id: newUser.id,
-    username: newUser.username,
-    displayName: newUser.displayName,
-    role: newUser.role,
-    createdAt: newUser.createdAt,
-  };
-
-  req.login(userWithoutPassword, (loginErr) => {
-    if (loginErr) {
-      return res.status(500).json({ error: 'Login failed' });
+    const existingUser = await storage.getUserByUsername(username);
+    if (existingUser) {
+      return res.status(400).json({ error: 'Username already exists' });
     }
-    return res.status(201).json(userWithoutPassword);
-  });
+
+    const directSqlEnvironment = process.env.DIRECT_SQL === 'true';
+    if (directSqlEnvironment) {
+      const query = `
+        INSERT INTO users (username, password, displayName, createdAt)
+        VALUES ($1, $2, $3, $4)
+        RETURNING id, username, displayName, role, createdAt
+      `;
+      const result = await executeDirectSql(query, [
+        username,
+        hashedPassword,
+        userData.displayName,
+        new Date(),
+      ]);
+      const newUser = result[0] as UserResponse;
+      const token = generateToken(newUser);
+      return res.status(201).json({ user: newUser, token });
+    }
+
+    const newUser = await storage.createUser({
+      username: userData.username,
+      password: hashedPassword,
+      displayName: userData.displayName,
+      role: userData.role || 'user',
+      createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
+    });
+
+    const token = generateToken({
+      id: newUser.id,
+      username: newUser.username,
+      displayName: newUser.displayName,
+      role: newUser.role,
+      createdAt: newUser.createdAt,
+    });
+
+    res.status(201).json({
+      user: {
+        id: newUser.id,
+        username: newUser.username,
+        displayName: newUser.displayName,
+        role: newUser.role,
+        createdAt: newUser.createdAt,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error('[AuthRoutes] Register error:', error);
+    res.status(400).json({ error: 'Invalid user data' });
+  }
 });
 
-export default router;
+router.post('/login', async (req: Request, res: Response) => {
+  try {
+    const { username, password } = req.body;
+    const user = await storage.getUserByUsername(username);
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const token = generateToken({
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      role: user.role,
+      createdAt: user.createdAt,
+    });
+
+    res.status(200).json({
+      user: {
+        id: user.id,
+        username: user.username,
+        displayName: user.displayName,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+      token,
+    });
+  } catch (error) {
+    console.error('[AuthRoutes] Login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+export const authRouter = router;

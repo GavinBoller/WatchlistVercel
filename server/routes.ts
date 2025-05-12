@@ -14,6 +14,7 @@ router.post('/register', async (req: Request, res: Response) => {
       password: userData.password,
       displayName: userData.displayName,
       role: userData.role || 'user',
+      createdAt: new Date(),
     });
     res.status(201).json({ id: newUser.id, username: newUser.username });
   } catch (error) {
@@ -44,7 +45,10 @@ router.get('/watchlist/:userId', async (req: Request, res: Response) => {
 router.post('/movies', async (req: Request, res: Response) => {
   try {
     const movieData = insertMovieSchema.parse(req.body);
-    const newMovie = await storage.addMovie(movieData);
+    const newMovie = await storage.addMovie({
+      ...movieData,
+      createdAt: new Date(),
+    });
     res.status(201).json(newMovie);
   } catch (error) {
     console.error('[Movies] Error:', error);
