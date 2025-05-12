@@ -121,4 +121,12 @@ router.post('/refresh', async (req: Request, res: Response) => {
   }
 });
 
+// Placeholder for additional routes (e.g., watchlist or TMDB integration)
+// router.post('/watchlist', async (req: Request, res: Response) => {
+//   // Add watchlist entry logic
+// });
+// router.get('/tmdb/movies/:id', async (req: Request, res: Response) => {
+//   // Fetch TMDB movie data
+// });
+
 export const jwtRouter = router;
