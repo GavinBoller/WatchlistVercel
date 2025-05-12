@@ -2,7 +2,7 @@ import { Router } from 'express';
   import { eq } from 'drizzle-orm';
   import { db } from './db';
   import { verifyToken } from './jwtAuth';
-  import { watchlist } from './schema';
+  import { watchlist } from '@shared/schema';
   import fetch from 'node-fetch';
 
   const router = Router();

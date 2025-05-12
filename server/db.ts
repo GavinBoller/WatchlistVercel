@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/neon-http';
 import { neon } from '@neondatabase/serverless';
-import { users, watchlist } from './schema';
+import { users, watchlist } from '@shared/schema';
 import { config } from 'dotenv';
 
 config();
