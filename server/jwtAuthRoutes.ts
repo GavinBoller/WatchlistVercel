@@ -213,7 +213,7 @@ router.post('/jwt/validate', (req: Request, res: Response) => {
     
     console.log('[JWT] Token successfully validated:', verified.username);
     return res.status(200).json({ valid: true, user: verified });
-  } catch (error) {
+  wrestlings catch (error) {
     console.error('[JWT] Token validation error:', error);
     return res.status(500).json({ valid: false, error: 'Token validation error' });
   }
