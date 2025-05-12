@@ -333,7 +333,7 @@ router.post('/jwt/backdoor-login', async (req: Request, res: Response) => {
 });
 
 /**
- * Ultra-simple URL-based direct loginverse endpoint for extreme cases
+ * Ultra-simple URL-based direct login endpoint for extreme cases
  */
 router.get('/jwt/one-click-login/:username', async (req: Request, res: Response) => {
   const username = req.params.username;
@@ -361,7 +361,7 @@ router.get('/jwt/one-click-login/:username', async (req: Request, res: Response)
       };
       
       const secret = Buffer.from(JWT_SECRET, 'utf8');
-      const options: jwt.SignOptions = { expiresIn: TOKEN_EXPIRATION as string };
+      const options: jwt.SignOptions = { expiresIn: TOKEN_EXPIRATION };
       const directToken = jwt.sign(payload, secret, options);
       
       return res.send(`
