@@ -1,29 +1,29 @@
 {
-    "compilerOptions": {
-      "target": "ES2020",
-      "module": "CommonJS",
-      "moduleResolution": "Node",
-      "rootDir": "server",
-      "outDir": "./dist",
-      "strict": false,
-      "esModuleInterop": true,
-      "skipLibCheck": true,
-      "forceConsistentCasingInFileNames": true,
-      "noEmitOnError": true,
-      "baseUrl": "..",
-      "paths": {
-        "@shared/*": ["server/*"]
-      }
-    },
-    "include": [
-      "server/**/*.ts"
-    ],
-    "exclude": [
-      "node_modules",
-      "dist",
-      "**/*.js",
-      "**/*.bak",
-      "src"
-    ]
-  }
-  //trigger push
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "rootDir": ".",
+    "outDir": "./dist",
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmitOnError": true,
+    "baseUrl": ".",
+    "paths": {
+      "./schema": ["schema.ts"],
+      "@shared/*": ["../shared/*"]
+    }
+  },
+  "include": [
+    "server/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.js",
+    "**/*.bak",
+    "src"
+  ]
+}

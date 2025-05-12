@@ -16,11 +16,11 @@
   },
   "include": [
     "src/**/*",
-    "server/**/*",
     "shared/**/*"
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    "server"
   ]
 }
