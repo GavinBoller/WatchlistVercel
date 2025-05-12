@@ -1,57 +1,21 @@
-import { Pool, QueryResultRow } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
 import * as schema from '@shared/schema';
 
-let db: ReturnType<typeof drizzle> | undefined;
+export const DATABASE_URL = process.env.DATABASE_URL || '';
 
-export async function getDb() {
-  if (!db) {
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    });
-    db = drizzle(pool, { schema });
-  }
-  return db;
-}
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+});
 
-export async function executeDirectSql<T extends QueryResultRow>(
-  sql: string,
-  params: any[] = [],
-  errorMessage = 'SQL execution failed'
-): Promise<{ rows: T[], rowCount: number | null }> {
-  const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  });
+export const db = drizzle(pool, { schema });
+
+export async function executeDirectSql(query: string) {
   try {
-    const client = await pool.connect();
-    try {
-      const result = await client.query<T>(sql, params);
-      return { rows: result.rows, rowCount: result.rowCount };
-    } finally {
-      client.release();
-    }
+    const result = await pool.query(query);
+    return result.rows;
   } catch (error) {
-    console.error(errorMessage, error);
+    console.error('[DB] Error executing direct SQL:', error);
     throw error;
-  } finally {
-    await pool.end();
-  }
-}
-
-export async function ensureDatabaseReady(): Promise<boolean> {
-  try {
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    });
-    const client = await pool.connect();
-    client.release();
-    await pool.end();
-    return true;
-  } catch (error) {
-    console.error("Database connection check failed:", error);
-    return false;
   }
 }

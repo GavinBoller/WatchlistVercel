@@ -2,27 +2,44 @@ import * as schema from '@shared/schema';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { DATABASE_URL } from './db';
+import { eq, inArray } from 'drizzle-orm';
 
 const pool = new Pool({ connectionString: DATABASE_URL });
 export const db = drizzle(pool, { schema });
 
 export const storage = {
+  async createUser(user: schema.InsertUser) {
+    const result = await db.insert(schema.users).values(user).returning();
+    return result[0];
+  },
   async getUserByUsername(username: string) {
-    const result = await db.select().from(schema.users).where({ username }).limit(1);
+    const result = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.username, username))
+      .limit(1);
     return result[0];
   },
   async getUser(userId: number) {
-    const result = await db.select().from(schema.users).where({ id: userId }).limit(1);
+    const result = await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .limit(1);
     return result[0];
   },
   async getWatchlist(userId: number) {
-    return await db.select().from(schema.watchlistEntries).where({ userId });
+    return await db
+      .select()
+      .from(schema.watchlistEntries)
+      .where(eq(schema.watchlistEntries.userId, userId));
   },
   async getWatchlistEntry(userId: number, movieId: number) {
     const result = await db
       .select()
       .from(schema.watchlistEntries)
-      .where({ userId, movieId })
+      .where(eq(schema.watchlistEntries.userId, userId))
+      .where(eq(schema.watchlistEntries.movieId, movieId))
       .limit(1);
     return result[0];
   },
@@ -30,42 +47,65 @@ export const storage = {
     return await db
       .select()
       .from(schema.watchlistEntries)
-      .leftJoin(schema.movies, { movieId: schema.movies.id })
-      .where({ userId });
+      .leftJoin(schema.movies, eq(schema.watchlistEntries.movieId, schema.movies.id))
+      .where(eq(schema.watchlistEntries.userId, userId));
   },
   async addWatchlistEntry(userId: number, entry: schema.InsertWatchlistEntry) {
-    const result = await db.insert(schema.watchlistEntries).values({ ...entry, userId }).returning();
+    const result = await db
+      .insert(schema.watchlistEntries)
+      .values({ ...entry, userId })
+      .returning();
     return result[0];
   },
   async updateWatchlistEntry(userId: number, movieId: number, entry: Partial<schema.InsertWatchlistEntry>) {
     const result = await db
       .update(schema.watchlistEntries)
       .set(entry)
-      .where({ userId, movieId })
+      .where(eq(schema.watchlistEntries.userId, userId))
+      .where(eq(schema.watchlistEntries.movieId, movieId))
       .returning();
     return result[0];
   },
   async deleteWatchlistEntry(userId: number, movieId: number) {
-    const result = await db.delete(schema.watchlistEntries).where({ userId, movieId }).returning();
+    const result = await db
+      .delete(schema.watchlistEntries)
+      .where(eq(schema.watchlistEntries.userId, userId))
+      .where(eq(schema.watchlistEntries.movieId, movieId))
+      .returning();
     return result[0];
   },
   async getMovie(movieId: number) {
-    const result = await db.select().from(schema.movies).where({ id: movieId }).limit(1);
+    const result = await db
+      .select()
+      .from(schema.movies)
+      .where(eq(schema.movies.id, movieId))
+      .limit(1);
     return result[0];
   },
   async getMoviesByIds(movieIds: number[]) {
-    return await db.select().from(schema.movies).where({ id: { in: movieIds } });
+    return await db
+      .select()
+      .from(schema.movies)
+      .where(inArray(schema.movies.id, movieIds));
   },
   async addMovie(movie: schema.InsertMovie) {
     const result = await db.insert(schema.movies).values(movie).returning();
     return result[0];
   },
   async updateMovie(movieId: number, movie: Partial<schema.InsertMovie>) {
-    const result = await db.update(schema.movies).set(movie).where({ id: movieId }).returning();
+    const result = await db
+      .update(schema.movies)
+      .set(movie)
+      .where(eq(schema.movies.id, movieId))
+      .returning();
     return result[0];
   },
   async getPlatform(platformId: number) {
-    const result = await db.select().from(schema.platforms).where({ id: platformId }).limit(1);
+    const result = await db
+      .select()
+      .from(schema.platforms)
+      .where(eq(schema.platforms.id, platformId))
+      .limit(1);
     return result[0];
   },
   async getPlatforms() {
@@ -76,31 +116,33 @@ export const storage = {
     return result[0];
   },
   async updatePlatform(platformId: number, platform: Partial<schema.InsertPlatform>) {
-    const result = await db.update(schema.platforms).set(platform).where({ id: platformId }).returning();
+    const result = await db
+      .update(schema.platforms)
+      .set(platform)
+      .where(eq(schema.platforms.id, platformId))
+      .returning();
     return result[0];
   },
   async deletePlatform(platformId: number) {
-    const result = await db.delete(schema.platforms).where({ id: platformId }).returning();
+    const result = await db
+      .delete(schema.platforms)
+      .where(eq(schema.platforms.id, platformId))
+      .returning();
     return result[0];
   },
   async getSystemStats() {
-    // TODO: Implement actual stats logic
     return { users: 0, movies: 0, watchlistEntries: 0, platforms: 0 };
   },
   async getFullSystemStats() {
-    // TODO: Implement actual full stats logic
     return { detailedUsers: [], detailedMovies: [], detailedWatchlist: [], detailedPlatforms: [] };
   },
   async getSummaryStats() {
-    // TODO: Implement actual summary stats logic
     return { totalUsers: 0, totalMovies: 0, totalWatchlistEntries: 0 };
   },
   async getUserActivity() {
-    // TODO: Implement actual user activity logic
     return { recentLogins: [], recentWatchlistUpdates: [] };
   },
   async getSystemHealth() {
-    // TODO: Implement actual system health logic
     return { status: 'ok', uptime: process.uptime(), memory: process.memoryUsage() };
   },
 };

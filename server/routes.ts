@@ -1,92 +1,57 @@
 import { Router, Request, Response } from 'express';
 import { storage } from './storage';
-import { jwtAuthRouter } from './jwtAuthRoutes';
+import { z } from 'zod';
 import { insertMovieSchema, insertUserSchema, WatchlistEntryWithMovie } from '@shared/schema';
-import bcrypt from 'bcryptjs';
-import { executeDirectSql } from './db';
+import { getEmergencyWatchlist } from './emergencyWatchlist';
 
 const router = Router();
 
-router.use(jwtAuthRouter);
-
-router.post('/users', async (req: Request, res: Response) => {
-  const userData = insertUserSchema.parse(req.body);
-  const existingUser = await storage.getUserByUsername(userData.username);
-  if (existingUser) {
-    return res.status(409).json({ error: 'Username already exists' });
+router.post('/register', async (req: Request, res: Response) => {
+  try {
+    const userData = insertUserSchema.parse(req.body);
+    const newUser = await storage.createUser({
+      username: userData.username,
+      password: userData.password,
+      displayName: userData.displayName,
+      role: userData.role || 'user',
+    });
+    res.status(201).json({ id: newUser.id, username: newUser.username });
+  } catch (error) {
+    console.error('[Register] Error:', error);
+    res.status(400).json({ error: 'Invalid user data' });
   }
-
-  const hashedPassword = await bcrypt.hash(userData.password, 10);
-  const newUser = await storage.createUser({
-    username: userData.username,
-    password: hashedPassword,
-    role: userData.role || 'user',
-    displayName: userData.displayName,
-    createdAt: userData.createdAt || new Date(),
-  });
-
-  return res.status(201).json(newUser);
 });
 
 router.get('/watchlist/:userId', async (req: Request, res: Response) => {
   const userId = parseInt(req.params.userId, 10);
+  if (isNaN(userId)) {
+    return res.status(400).json({ error: 'Invalid user ID' });
+  }
+
   try {
-    const entries = await storage.getWatchlistEntries(userId);
-    return res.json(entries);
+    const entries = await storage.getWatchlist(userId);
+    const watchlist: WatchlistEntryWithMovie[] = entries.map(entry => ({
+      ...entry,
+      movie: { id: entry.movieId } as any, // Simplified
+    }));
+    res.status(200).json(watchlist);
   } catch (error) {
-    console.error('[ROUTES] Error fetching watchlist:', error);
-    try {
-      const entryResults = await executeDirectSql(
-        `SELECT we.*, m.*, p.id as platform_id, p.name as platform_name, p.logo_url, p.is_default
-         FROM watchlist_entries we
-         JOIN movies m ON we.movie_id = m.id
-         LEFT JOIN platforms p ON we.platform_id = p.id
-         WHERE we.user_id = $1
-         ORDER BY we.created_at DESC`,
-        [userId]
-      );
-
-      const watchlistData: WatchlistEntryWithMovie[] = entryResults.rows.map((row: any) => ({
-        id: row.id,
-        userId: row.user_id,
-        movieId: row.movie_id,
-        platformId: row.platform_id || null,
-        status: row.status || 'to_watch',
-        watchedDate: row.watched_date || null,
-        notes: row.notes || '',
-        createdAt: new Date(row.created_at),
-        movie: {
-          id: row.movie_id,
-          tmdbId: row.tmdb_id,
-          title: row.title || '[Unknown]',
-          overview: row.overview || '',
-          posterPath: row.poster_path || '',
-          backdropPath: row.backdrop_path || '',
-          releaseDate: row.release_date || null,
-          voteAverage: row.vote_average || 0,
-          runtime: row.runtime || null,
-          numberOfSeasons: row.number_of_seasons || null,
-          numberOfEpisodes: row.number_of_episodes || null,
-          mediaType: row.media_type || 'movie',
-          createdAt: new Date(row.created_at),
-        },
-        platform: row.platform_id
-          ? {
-              id: row.platform_id,
-              userId: row.user_id,
-              name: row.platform_name || 'Unknown Platform',
-              logoUrl: row.logo_url || null,
-              isDefault: !!row.is_default,
-            }
-          : null,
-      }));
-
-      return res.json(watchlistData);
-    } catch (sqlError) {
-      console.error('[ROUTES] SQL Error:', sqlError);
-      return res.status(500).json({ error: 'Failed to fetch watchlist' });
-    }
+    console.error('[Watchlist] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-export default router;
+router.post('/movies', async (req: Request, res: Response) => {
+  try {
+    const movieData = insertMovieSchema.parse(req.body);
+    const newMovie = await storage.addMovie(movieData);
+    res.status(201).json(newMovie);
+  } catch (error) {
+    console.error('[Movies] Error:', error);
+    res.status(400).json({ error: 'Invalid movie data' });
+  }
+});
+
+router.get('/emergency-watchlist/:userId', getEmergencyWatchlist);
+
+export const apiRouter = router;
