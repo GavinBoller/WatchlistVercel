@@ -10,10 +10,13 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noEmitOnError": true,
-    "baseUrl": "."
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["../shared/*"]
+    }
   },
   "include": [
-    "server/*.ts"
+    "server/**/*.ts"
   ],
   "exclude": [
     "node_modules",
