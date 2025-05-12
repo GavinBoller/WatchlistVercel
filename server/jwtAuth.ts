@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { User, UserResponse } from '@shared/schema';
 
 export const JWT_SECRET = process.env.JWT_SECRET || 'movie-watchlist-secure-jwt-secret-key';
-export const TOKEN_EXPIRATION: string | number = '7d';
+export const TOKEN_EXPIRATION = '7d';
 
 export function generateToken(user: UserResponse): string {
   return jwt.sign(
@@ -15,7 +15,7 @@ export function generateToken(user: UserResponse): string {
       createdAt: user.createdAt,
     },
     JWT_SECRET,
-    { expiresIn: TOKEN_EXPIRATION }
+    { expiresIn: TOKEN_EXPIRATION as string }
   );
 }
 
@@ -37,4 +37,12 @@ export function createUserResponse(user: User): UserResponse {
     role: user.role,
     createdAt: user.createdAt,
   };
+}
+
+export function extractTokenFromHeader(req: Request): string | null {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7);
+  }
+  return null;
 }

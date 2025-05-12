@@ -1,207 +1,106 @@
-import { eq, and, desc } from "drizzle-orm";
-import { getDb, executeDirectSql } from "./db";
-import * as schema from "@shared/schema";
+import * as schema from '@shared/schema';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import { DATABASE_URL } from './db';
 
-const { users, movies, watchlistEntries, platforms } = schema;
+const pool = new Pool({ connectionString: DATABASE_URL });
+export const db = drizzle(pool, { schema });
 
 export const storage = {
   async getUserByUsername(username: string) {
-    const db = await getDb();
-    const result = await db.select().from(users).where(eq(users.username, username));
-    return result.length > 0 ? result[0] : undefined;
+    const result = await db.select().from(schema.users).where({ username }).limit(1);
+    return result[0];
   },
-
   async getUser(userId: number) {
-    const db = await getDb();
-    const result = await db.select().from(users).where(eq(users.id, userId));
-    return result.length > 0 ? result[0] : undefined;
+    const result = await db.select().from(schema.users).where({ id: userId }).limit(1);
+    return result[0];
   },
-
-  async getAllUsers() {
-    const db = await getDb();
-    return await db.select().from(users);
+  async getWatchlist(userId: number) {
+    return await db.select().from(schema.watchlistEntries).where({ userId });
   },
-
-  async createUser(userData: Omit<schema.User, 'id'>) {
-    const db = await getDb();
-    const result = await db.insert(users).values({
-      username: userData.username,
-      password: userData.password,
-      role: userData.role || 'user',
-      displayName: userData.displayName,
-      createdAt: userData.createdAt || new Date(),
-    }).returning();
-    return result.length > 0 ? result[0] : undefined;
+  async getWatchlistEntry(userId: number, movieId: number) {
+    const result = await db
+      .select()
+      .from(schema.watchlistEntries)
+      .where({ userId, movieId })
+      .limit(1);
+    return result[0];
   },
-
-  async getMovieByTmdbId(tmdbId: number) {
-    const db = await getDb();
-    const result = await db.select().from(movies).where(eq(movies.tmdbId, tmdbId));
-    return result.length > 0 ? result[0] : undefined;
+  async getWatchlistWithMovies(userId: number) {
+    return await db
+      .select()
+      .from(schema.watchlistEntries)
+      .leftJoin(schema.movies, { movieId: schema.movies.id })
+      .where({ userId });
   },
-
+  async addWatchlistEntry(userId: number, entry: schema.InsertWatchlistEntry) {
+    const result = await db.insert(schema.watchlistEntries).values({ ...entry, userId }).returning();
+    return result[0];
+  },
+  async updateWatchlistEntry(userId: number, movieId: number, entry: Partial<schema.InsertWatchlistEntry>) {
+    const result = await db
+      .update(schema.watchlistEntries)
+      .set(entry)
+      .where({ userId, movieId })
+      .returning();
+    return result[0];
+  },
+  async deleteWatchlistEntry(userId: number, movieId: number) {
+    const result = await db.delete(schema.watchlistEntries).where({ userId, movieId }).returning();
+    return result[0];
+  },
   async getMovie(movieId: number) {
-    const db = await getDb();
-    const result = await db.select().from(movies).where(eq(movies.id, movieId));
-    return result.length > 0 ? result[0] : undefined;
+    const result = await db.select().from(schema.movies).where({ id: movieId }).limit(1);
+    return result[0];
   },
-
-  async createMovie(movieData: Omit<schema.Movie, 'id' | 'createdAt'>) {
-    const db = await getDb();
-    const result = await db.insert(movies).values({
-      tmdbId: movieData.tmdbId,
-      title: movieData.title,
-      overview: movieData.overview || null,
-      posterPath: movieData.posterPath || null,
-      backdropPath: movieData.backdropPath || null,
-      releaseDate: movieData.releaseDate || null,
-      voteAverage: String(movieData.voteAverage || 0),
-      runtime: movieData.runtime || null,
-      numberOfSeasons: movieData.numberOfSeasons || null,
-      numberOfEpisodes: movieData.numberOfEpisodes || null,
-      mediaType: movieData.mediaType || 'movie',
-      createdAt: new Date(),
-    }).returning();
-    return result.length > 0 ? result[0] : undefined;
+  async getMoviesByIds(movieIds: number[]) {
+    return await db.select().from(schema.movies).where({ id: { in: movieIds } });
   },
-
-  async getWatchlistEntries(userId: number) {
-    const db = await getDb();
-    const result = await db
-      .select({
-        id: watchlistEntries.id,
-        userId: watchlistEntries.userId,
-        movieId: watchlistEntries.movieId,
-        platformId: watchlistEntries.platformId,
-        status: watchlistEntries.status,
-        watchedDate: watchlistEntries.watchedDate,
-        notes: watchlistEntries.notes,
-        createdAt: watchlistEntries.createdAt,
-        movie: movies,
-        platform: platforms,
-      })
-      .from(watchlistEntries)
-      .innerJoin(movies, eq(watchlistEntries.movieId, movies.id))
-      .leftJoin(platforms, eq(watchlistEntries.platformId, platforms.id))
-      .where(eq(watchlistEntries.userId, userId))
-      .orderBy(desc(watchlistEntries.createdAt));
-    return result;
+  async addMovie(movie: schema.InsertMovie) {
+    const result = await db.insert(schema.movies).values(movie).returning();
+    return result[0];
   },
-
-  async getWatchlistEntry(entryId: number) {
-    const db = await getDb();
-    const result = await db
-      .select()
-      .from(watchlistEntries)
-      .where(eq(watchlistEntries.id, entryId));
-    return result.length > 0 ? result[0] : undefined;
+  async updateMovie(movieId: number, movie: Partial<schema.InsertMovie>) {
+    const result = await db.update(schema.movies).set(movie).where({ id: movieId }).returning();
+    return result[0];
   },
-
-  async createWatchlistEntry(entryData: Omit<schema.WatchlistEntry, 'id' | 'createdAt'>) {
-    const db = await getDb();
-    const status = entryData.status || 'to_watch';
-    if (!['to_watch', 'watching', 'watched'].includes(status)) {
-      throw new Error(`Invalid status: ${status}`);
-    }
-    const result = await db.insert(watchlistEntries).values({
-      userId: entryData.userId,
-      movieId: entryData.movieId,
-      platformId: entryData.platformId || null,
-      status: status as 'to_watch' | 'watching' | 'watched',
-      watchedDate: entryData.watchedDate || null,
-      notes: entryData.notes || null,
-      createdAt: new Date(),
-    }).returning();
-    return result.length > 0 ? result[0] : undefined;
-  },
-
-  async updateWatchlistEntry(
-    entryId: number,
-    updates: Partial<Omit<schema.WatchlistEntry, 'id' | 'createdAt'>>
-  ) {
-    const db = await getDb();
-    if (updates.status && !['to_watch', 'watching', 'watched'].includes(updates.status)) {
-      throw new Error(`Invalid status: ${updates.status}`);
-    }
-    const result = await db
-      .update(watchlistEntries)
-      .set({
-        ...updates,
-        status: updates.status ? (updates.status as 'to_watch' | 'watching' | 'watched') : undefined,
-      })
-      .where(eq(watchlistEntries.id, entryId))
-      .returning();
-    return result.length > 0 ? result[0] : undefined;
-  },
-
-  async deleteWatchlistEntry(entryId: number) {
-    const db = await getDb();
-    const result = await db
-      .delete(watchlistEntries)
-      .where(eq(watchlistEntries.id, entryId))
-      .returning();
-    return result.length > 0;
-  },
-
-  async hasWatchlistEntry(userId: number, movieId: number) {
-    const db = await getDb();
-    const result = await db
-      .select()
-      .from(watchlistEntries)
-      .where(
-        and(
-          eq(watchlistEntries.userId, userId),
-          eq(watchlistEntries.movieId, movieId)
-        )
-      );
-    return result.length > 0;
-  },
-
-  async getPlatforms(userId: number) {
-    const db = await getDb();
-    const result = await db.select().from(platforms).where(eq(platforms.userId, userId));
-    return result;
-  },
-
   async getPlatform(platformId: number) {
-    const db = await getDb();
-    const result = await db
-      .select()
-      .from(platforms)
-      .where(eq(platforms.id, platformId));
-    return result.length > 0 ? result[0] : undefined;
+    const result = await db.select().from(schema.platforms).where({ id: platformId }).limit(1);
+    return result[0];
   },
-
-  async createPlatform(platformData: Omit<schema.Platform, 'id'>) {
-    const db = await getDb();
-    const result = await db.insert(platforms).values({
-      userId: platformData.userId,
-      name: platformData.name,
-      logoUrl: platformData.logoUrl || null,
-      isDefault: platformData.isDefault || false,
-    }).returning();
-    return result.length > 0 ? result[0] : undefined;
+  async getPlatforms() {
+    return await db.select().from(schema.platforms);
   },
-
-  async updatePlatform(
-    platformId: number,
-    updates: Partial<schema.Platform>
-  ) {
-    const db = await getDb();
-    const result = await db
-      .update(platforms)
-      .set(updates)
-      .where(eq(platforms.id, platformId))
-      .returning();
-    return result.length > 0 ? result[0] : undefined;
+  async addPlatform(platform: schema.InsertPlatform) {
+    const result = await db.insert(schema.platforms).values(platform).returning();
+    return result[0];
   },
-
+  async updatePlatform(platformId: number, platform: Partial<schema.InsertPlatform>) {
+    const result = await db.update(schema.platforms).set(platform).where({ id: platformId }).returning();
+    return result[0];
+  },
   async deletePlatform(platformId: number) {
-    const db = await getDb();
-    const result = await db
-      .delete(platforms)
-      .where(eq(platforms.id, platformId))
-      .returning();
-    return result.length > 0;
+    const result = await db.delete(schema.platforms).where({ id: platformId }).returning();
+    return result[0];
+  },
+  async getSystemStats() {
+    // TODO: Implement actual stats logic
+    return { users: 0, movies: 0, watchlistEntries: 0, platforms: 0 };
+  },
+  async getFullSystemStats() {
+    // TODO: Implement actual full stats logic
+    return { detailedUsers: [], detailedMovies: [], detailedWatchlist: [], detailedPlatforms: [] };
+  },
+  async getSummaryStats() {
+    // TODO: Implement actual summary stats logic
+    return { totalUsers: 0, totalMovies: 0, totalWatchlistEntries: 0 };
+  },
+  async getUserActivity() {
+    // TODO: Implement actual user activity logic
+    return { recentLogins: [], recentWatchlistUpdates: [] };
+  },
+  async getSystemHealth() {
+    // TODO: Implement actual system health logic
+    return { status: 'ok', uptime: process.uptime(), memory: process.memoryUsage() };
   },
 };
