@@ -3,7 +3,7 @@
       "target": "ES2020",
       "module": "CommonJS",
       "moduleResolution": "Node",
-      "rootDir": "server",
+      "rootDir": ".",
       "outDir": "./dist",
       "strict": false,
       "esModuleInterop": true,

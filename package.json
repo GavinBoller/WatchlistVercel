@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc && vite build",
     "build:server": "tsc -p server/tsconfig.json",
-    "dev": "concurrently \"tsc -p server/tsconfig.json --watch\" \"node --import ts-node/esm server/index.ts\" \"vite\"",
+    "dev": "concurrently \"tsc -p server/tsconfig.json --watch\" \"node --loader ts-node/esm server/index.ts\" \"vite\"",
     "format": "prettier --write \"src/**/*.{ts,tsx}\" \"server/**/*.{ts}\"",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"server/**/*.{ts}\"",
     "migrate": "drizzle-kit push --config=./server/drizzle.config.ts",
