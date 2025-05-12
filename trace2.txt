@@ -1,0 +1,1 @@
+error TS18003: No inputs were found in config file '/Users/gavinboller/Library/CloudStorage/OneDrive-Personal/Documents/Watchlist App/Watchlist/server/tsconfig.json'. Specified 'include' paths were '["server/**/*.ts","shared/**/*.ts"]' and 'exclude' paths were '["node_modules","dist","**/*.js","**/*.bak"]'.
