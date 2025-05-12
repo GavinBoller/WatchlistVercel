@@ -2,10 +2,11 @@
   "name": "watchlist",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "tsc && vite build",
     "build:server": "tsc -p server/tsconfig.json",
-    "dev": "concurrently \"tsc -p server/tsconfig.json --watch\" \"vite\"",
+    "dev": "concurrently \"tsc -p server/tsconfig.json --watch\" \"node --import ts-node/esm server/index.ts\" \"vite\"",
     "format": "prettier --write \"src/**/*.{ts,tsx}\" \"server/**/*.{ts}\"",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"server/**/*.{ts}\"",
     "migrate": "drizzle-kit push --config=./server/drizzle.config.ts",
@@ -16,9 +17,14 @@
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-dropdown-menu": "^2.1.1",
     "@radix-ui/react-label": "^2.1.0",
+    "@radix-ui/react-radio-group": "^1.2.0",
+    "@radix-ui/react-scroll-area": "^1.1.0",
+    "@radix-ui/react-select": "^2.1.1",
     "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-switch": "^1.1.0",
     "@radix-ui/react-tabs": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.1",
+    "@tanstack/react-query": "^5.59.13",
     "axios": "^1.7.2",
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.0",
@@ -40,6 +46,7 @@
     "react-router-dom": "^6.24.0",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
+    "wouter": "^3.3.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -64,9 +71,11 @@
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.7",
+    "nodemon": "^3.1.7",
     "postcss": "^8.4.38",
     "prettier": "^3.3.2",
     "tailwindcss": "^3.4.4",
+    "ts-node": "^10.9.2",
     "typescript": "^5.5.2",
     "vite": "^5.3.1"
   }

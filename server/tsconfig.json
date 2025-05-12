@@ -3,7 +3,7 @@
       "target": "ES2020",
       "module": "CommonJS",
       "moduleResolution": "Node",
-      "rootDir": "..",
+      "rootDir": "server",
       "outDir": "./dist",
       "strict": false,
       "esModuleInterop": true,
@@ -17,7 +17,7 @@
     },
     "include": [
       "server/**/*.ts",
-      "shared/**/*.ts"
+      "../shared/**/*.ts"
     ],
     "exclude": [
       "node_modules",
