@@ -1,12 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { storage } from './storage';
+import { db, storage } from './storage';
 import { insertUserSchema, UserResponse } from '@shared/schema';
 import bcrypt from 'bcryptjs';
 import { generateToken } from './jwtAuth';
-import { Pool } from 'pg';
-import { DATABASE_URL } from './db';
-
-const pool = new Pool({ connectionString: DATABASE_URL });
 
 const router = Router();
 
@@ -15,30 +11,10 @@ router.post('/register', async (req: Request, res: Response) => {
     const userData = insertUserSchema.parse(req.body);
     const hashedPassword = await bcrypt.hash(userData.password, 10);
     const username = userData.username;
-
     const existingUser = await storage.getUserByUsername(username);
     if (existingUser) {
       return res.status(400).json({ error: 'Username already exists' });
     }
-
-    const directSqlEnvironment = process.env.DIRECT_SQL === 'true';
-    if (directSqlEnvironment) {
-      const query = `
-        INSERT INTO users (username, password, displayName, createdAt)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, username, displayName, role, createdAt
-      `;
-      const result = await pool.query(query, [
-        username,
-        hashedPassword,
-        userData.displayName,
-        new Date(),
-      ]);
-      const newUser = result.rows[0] as UserResponse;
-      const token = generateToken(newUser);
-      return res.status(201).json({ user: newUser, token });
-    }
-
     const newUser = await storage.createUser({
       username: userData.username,
       password: hashedPassword,
@@ -46,15 +22,7 @@ router.post('/register', async (req: Request, res: Response) => {
       role: userData.role || 'user',
       createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
     });
-
-    const token = generateToken({
-      id: newUser.id,
-      username: newUser.username,
-      displayName: newUser.displayName,
-      role: newUser.role,
-      createdAt: newUser.createdAt,
-    });
-
+    const token = generateToken(newUser);
     res.status(201).json({
       user: {
         id: newUser.id,
@@ -65,6 +33,7 @@ router.post('/register', async (req: Request, res: Response) => {
       },
       token,
     });
+ 視点: **register** endpoint
   } catch (error) {
     console.error('[AuthRoutes] Register error:', error);
     res.status(400).json({ error: 'Invalid user data' });
@@ -78,7 +47,6 @@ router.post('/login', async (req: Request, res: Response) => {
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-
     const token = generateToken({
       id: user.id,
       username: user.username,
@@ -86,7 +54,6 @@ router.post('/login', async (req: Request, res: Response) => {
       role: user.role,
       createdAt: user.createdAt,
     });
-
     res.status(200).json({
       user: {
         id: user.id,
