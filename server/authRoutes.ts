@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { db, storage } from './storage';
+import { db, storage } from './types/storage';
 import { insertUserSchema, UserResponse } from '@shared/schema';
 import bcrypt from 'bcryptjs';
 import { generateToken } from './jwtAuth';

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { isJwtAuthenticated } from './jwtMiddleware';
 import { UserResponse } from '@shared/schema';
-import { storage } from './storage';
+import { storage } from './types/storage';
 import { executeDirectSql } from './db';
 
 const router = Router();

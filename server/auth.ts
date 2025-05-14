@@ -3,7 +3,7 @@ import passport from 'passport';
 import { Strategy as LocalStrategy } from 'passport-local';
 import bcrypt from 'bcryptjs';
 import { User, UserResponse } from '@shared/schema';
-import { storage } from './storage';
+import { storage } from './types/storage';
 
 // Custom type for enhanced session data
 declare module 'express-session' {

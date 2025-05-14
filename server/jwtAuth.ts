@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { User, UserResponse } from '@shared/schema';
+import { UserResponse } from '@shared/schema';
 
 export const JWT_SECRET = process.env.JWT_SECRET || 'movie-watchlist-secure-jwt-secret-key';
 export const TOKEN_EXPIRATION = '7d';
@@ -15,7 +15,7 @@ export function generateToken(user: UserResponse): string {
       createdAt: user.createdAt,
     },
     JWT_SECRET,
-    { expiresIn: TOKEN_EXPIRATION as string }
+    { expiresIn: TOKEN_EXPIRATION }
   );
 }
 
@@ -29,7 +29,7 @@ export function verifyToken(token: string): UserResponse | null {
   }
 }
 
-export function createUserResponse(user: User): UserResponse {
+export function createUserResponse(user: UserResponse): UserResponse {
   return {
     id: user.id,
     username: user.username,

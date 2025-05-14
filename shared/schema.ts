@@ -47,8 +47,19 @@ export const platforms = pgTable('platforms', {
   createdAt: timestamp('createdAt').notNull().defaultNow(),
 });
 
+export interface WatchlistEntry {
+  id: number;
+  userId: number;
+  movieId: number;
+  status: string;
+  rating?: number;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export type User = typeof users.$inferSelect;
-export type WatchlistEntry = typeof watchlistEntries.$inferSelect;
+export type WatchlistEntryType = typeof watchlistEntries.$inferSelect;
 export type Movie = typeof movies.$inferSelect;
 export type Platform = typeof platforms.$inferSelect;
 
@@ -57,13 +68,14 @@ export type InsertWatchlistEntry = typeof watchlistEntries.$inferInsert;
 export type InsertMovie = typeof movies.$inferInsert;
 export type InsertPlatform = typeof platforms.$inferInsert;
 
-export type UserResponse = {
+export interface UserResponse {
   id: number;
   username: string;
   displayName: string;
   role: string;
   createdAt: Date;
-};
+  password?: string; // Optional for cases where password is needed
+}
 
 export type WatchlistEntryWithMovie = WatchlistEntry & {
   movie: Movie;
@@ -79,4 +91,12 @@ export const insertUserSchema = createInsertSchema(users, {
 export const insertMovieSchema = createInsertSchema(movies, {
   title: z.string().min(1),
   tmdbId: z.number().int().positive(),
+});
+
+export const insertWatchlistEntrySchema = createInsertSchema(watchlistEntries, {
+  userId: z.number().int().positive(),
+  movieId: z.number().int().positive(),
+  status: z.string().min(1),
+  rating: z.number().int().min(0).max(10).optional(),
+  notes: z.string().optional(),
 });

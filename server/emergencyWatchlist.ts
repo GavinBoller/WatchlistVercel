@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { storage } from './storage';
+import { storage } from './types/storage';
 import { WatchlistEntryWithMovie } from '@shared/schema';
 
 export async function getEmergencyWatchlist(req: Request, res: Response) {

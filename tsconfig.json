@@ -3,6 +3,7 @@
     "target": "ES2020",
     "module": "CommonJS",
     "moduleResolution": "Node",
+    "typeRoots": ["./node_modules/@types", "./server/types"],
     "rootDir": ".",
     "outDir": "dist",
     "strict": false,
@@ -17,13 +18,7 @@
     "traceResolution": true
   },
   "include": [
-    "server/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "**/*.js",
-    "**/*.bak",
-    "src"
-  ]
+    "server/*.ts", "server/types/*.d.ts"
+, "server/types/storage.ts"  ],
+  "exclude": ["node_modules", "dist", "**/*.js", "**/*.bak", "src"]
 }

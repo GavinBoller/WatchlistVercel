@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { storage } from './storage';
+import { storage } from './types/storage';
 import { z } from 'zod';
 import { insertMovieSchema, insertUserSchema, WatchlistEntryWithMovie } from '@shared/schema';
 import { getEmergencyWatchlist } from './emergencyWatchlist';

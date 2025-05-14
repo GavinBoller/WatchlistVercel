@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { storage } from './storage';
+import { storage } from './types/storage';
 import { UserResponse } from '@shared/schema';
 
 const router = Router();
