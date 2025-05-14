@@ -1,27 +1,22 @@
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken } from './jwtAuth';
+import jwt from 'jsonwebtoken';
 import { UserResponse } from '@shared/schema';
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: UserResponse;
-    }
-  }
-}
+const JWT_SECRET = process.env.JWT_SECRET || 'movie-watchlist-secure-jwt-secret-key';
 
 export function isJwtAuthenticated(req: Request, res: Response, next: NextFunction) {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ status: 'error', message: 'No token provided' });
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'No token provided' });
   }
 
+  const token = authHeader.split(' ')[1];
   try {
-    const decoded = verifyToken(token) as UserResponse;
-    req.user = decoded;
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; iat: number; exp: number };
+    req.user = { id: parseInt(decoded.id, 10) } as UserResponse; // Simplified for compatibility
     next();
-  } catch (err) {
-    console.error('[JWT_MIDDLEWARE] Error:', err);
-    return res.status(401).json({ status: 'error', message: 'Invalid token' });
+  } catch (error) {
+    console.error('[JWT] Authentication error:', error);
+    res.status(401).json({ error: 'Invalid token' });
   }
 }

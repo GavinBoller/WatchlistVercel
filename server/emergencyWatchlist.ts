@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
-import { storage } from './types/storage';
-import { WatchlistEntryWithMovie } from '@shared/schema';
+import { db } from './db';
+import { watchlistEntries, WatchlistEntryWithMovie } from '@shared/schema';
+import { eq } from 'drizzle-orm';
 
 export async function getEmergencyWatchlist(req: Request, res: Response) {
   const userId = parseInt(req.params.userId, 10);
@@ -9,11 +10,24 @@ export async function getEmergencyWatchlist(req: Request, res: Response) {
   }
 
   try {
-    const entries = await storage.getWatchlist(userId);
-    const watchlist: WatchlistEntryWithMovie[] = entries.map(entry => ({
-      ...entry,
-      movie: { id: entry.movieId } as any, // Simplified for emergency use
-    }));
+    const entries = await db
+      .select({
+        id: watchlistEntries.id,
+        userId: watchlistEntries.userId,
+        movieId: watchlistEntries.movieId,
+        title: watchlistEntries.title,
+        posterPath: watchlistEntries.posterPath,
+        status: watchlistEntries.status,
+        rating: watchlistEntries.rating,
+        notes: watchlistEntries.notes,
+        createdAt: watchlistEntries.createdAt,
+        updatedAt: watchlistEntries.updatedAt,
+        movieTitle: watchlistEntries.title,
+        moviePosterPath: watchlistEntries.posterPath,
+      })
+      .from(watchlistEntries)
+      .where(eq(watchlistEntries.userId, userId));
+    const watchlist: WatchlistEntryWithMovie[] = entries;
     res.status(200).json(watchlist);
   } catch (error) {
     console.error('[EmergencyWatchlist] Error fetching watchlist:', error);

@@ -4,8 +4,8 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "typeRoots": ["./node_modules/@types", "./server/types"],
-    "rootDir": ".",
-    "outDir": "dist",
+    "rootDir": "server",
+    "outDir": "./dist",
     "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -15,10 +15,12 @@
     "paths": {
       "@shared/*": ["shared/*"]
     },
-    "traceResolution": true
+    "traceResolution": false
   },
   "include": [
-    "server/*.ts", "server/types/*.d.ts"
-, "server/types/storage.ts"  ],
+    "server/**/*.ts",
+    "server/types/*.d.ts",
+    "shared/**/*.ts"
+  ],
   "exclude": ["node_modules", "dist", "**/*.js", "**/*.bak", "src"]
 }

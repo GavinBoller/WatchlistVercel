@@ -1,8 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { isJwtAuthenticated } from './jwtMiddleware';
 import { UserResponse } from '@shared/schema';
-import { storage } from './types/storage';
+import { db } from './db';
+import * as schema from '@shared/schema';
 import { executeDirectSql } from './db';
+import { count, sql, desc, eq } from 'drizzle-orm';
 
 const router = Router();
 const adminIds = ['1', '2'];
@@ -25,7 +27,13 @@ router.get('/stats', isJwtAuthenticated, async (req: Request, res: Response) => 
 
   try {
     console.log(`[ADMIN] Stats accessed by user: ${user.username} (ID: ${user.id})`);
-    const stats = await storage.getSystemStats();
+    const [userCount] = await db.select({ count: count() }).from(schema.users);
+    const [watchlistCount] = await db.select({ count: count() }).from(schema.watchlistEntries);
+    const stats = {
+      totalUsers: userCount.count,
+      totalWatchlistEntries: watchlistCount.count,
+      timestamp: new Date().toISOString(),
+    };
     res.status(200).json(stats);
   } catch (error) {
     console.error('[ADMIN] Error fetching stats:', error);
@@ -45,7 +53,19 @@ router.get('/stats/full', isJwtAuthenticated, async (req: Request, res: Response
 
   try {
     console.log(`[ADMIN] Full stats accessed by user: ${user.username} (ID: ${user.id})`);
-    const fullStats = await storage.getFullSystemStats();
+    const users = await db.select().from(schema.users).limit(100);
+    const watchlistEntries = await db.select().from(schema.watchlistEntries).limit(100);
+    const fullStats = {
+      users: users.map(u => ({
+        id: u.id,
+        username: u.username,
+        displayName: u.displayName,
+        role: u.role,
+        createdAt: u.createdAt,
+      })),
+      watchlistEntries,
+      timestamp: new Date().toISOString(),
+    };
     res.status(200).json(fullStats);
   } catch (error) {
     console.error('[ADMIN] Error fetching full stats:', error);
@@ -65,7 +85,19 @@ router.get('/stats/summary', isJwtAuthenticated, async (req: Request, res: Respo
 
   try {
     console.log(`[ADMIN] Summary stats accessed by user: ${user.username} (ID: ${user.id})`);
-    const summaryStats = await storage.getSummaryStats();
+    const [activeUsers] = await db
+      .select({ count: count() })
+      .from(schema.users)
+      .where(sql`created_at > ${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()}`);
+    const [recentWatchlist] = await db
+      .select({ count: count() })
+      .from(schema.watchlistEntries)
+      .where(sql`created_at > ${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()}`);
+    const summaryStats = {
+      activeUsers: activeUsers.count,
+      recentWatchlistEntries: recentWatchlist.count,
+      timestamp: new Date().toISOString(),
+    };
     res.status(200).json(summaryStats);
   } catch (error) {
     console.error('[ADMIN] Error fetching summary stats:', error);
@@ -85,7 +117,18 @@ router.get('/user-activity', isJwtAuthenticated, async (req: Request, res: Respo
 
   try {
     console.log(`[ADMIN] Dashboard access by user: ${user.username} (ID: ${user.id})`);
-    const activity = await storage.getUserActivity();
+    const activity = await db
+      .select({
+        userId: schema.watchlistEntries.userId,
+        username: schema.users.username,
+        movieId: schema.watchlistEntries.movieId,
+        title: schema.watchlistEntries.title,
+        createdAt: schema.watchlistEntries.createdAt,
+      })
+      .from(schema.watchlistEntries)
+      .innerJoin(schema.users, eq(schema.users.id, schema.watchlistEntries.userId))
+      .orderBy(desc(schema.watchlistEntries.createdAt))
+      .limit(50);
     res.status(200).json(activity);
   } catch (error) {
     console.error('[ADMIN] Error fetching user activity:', error);
@@ -105,7 +148,12 @@ router.get('/health', isJwtAuthenticated, async (req: Request, res: Response) =>
 
   try {
     console.log(`[ADMIN] Health check accessed by user: ${user.username} (ID: ${user.id})`);
-    const health = await storage.getSystemHealth();
+    const dbStatus = await executeDirectSql('SELECT 1 AS status');
+    const health = {
+      status: 'ok',
+      database: dbStatus.length > 0 ? 'connected' : 'disconnected',
+      timestamp: new Date().toISOString(),
+    };
     res.status(200).json(health);
   } catch (error) {
     console.error('[ADMIN] Error fetching system health:', error);
@@ -126,11 +174,11 @@ router.get('/db-status', isJwtAuthenticated, async (req: Request, res: Response)
   try {
     console.log(`[ADMIN] DB status accessed by user: ${user.username} (ID: ${user.id})`);
     const dbStatus = await executeDirectSql('SELECT 1 AS status');
-    res.status(200).json({ status: 'ok', db: dbStatus });
+    res.status(200).json({ error: 'Admin access required' });
   } catch (error) {
     console.error('[ADMIN] Error fetching DB status:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-export const statusRouter = router;
+export default router;
