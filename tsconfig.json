@@ -4,7 +4,7 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "typeRoots": ["./node_modules/@types", "./server/types"],
-    "rootDir": "server",
+    "rootDir": ".",
     "outDir": "./dist",
     "strict": false,
     "esModuleInterop": true,
