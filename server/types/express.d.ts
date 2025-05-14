@@ -1,14 +1,12 @@
 import { Session } from 'express-session';
 import { UserResponse } from '@shared/schema';
 
-// Interface for JWT payload (used in server/jwtAuthRoutes.ts)
 interface JwtUser {
   id: string;
   iat: number;
   exp: number;
 }
 
-// Custom SessionData interface
 interface CustomSessionData {
   authenticated?: boolean;
   lastChecked?: number;
