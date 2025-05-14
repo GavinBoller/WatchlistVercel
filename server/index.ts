@@ -1,3 +1,4 @@
+import 'tsconfig-paths/register';
 import express from 'express';
 import session from 'express-session';
 import passport from 'passport';
@@ -32,11 +33,14 @@ configurePassport();
 // Routes
 app.use('/api/auth', authRouter);
 app.use('/api', isAuthenticated, apiRouter);
-app.use('/api/jwt', jwtAuthRouter); // Changed to /api/jwt to avoid conflicts
+app.use('/api/jwt', jwtAuthRouter);
 
 // Health check for Vercel
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-const PORT = process.env.PORT || 300
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
