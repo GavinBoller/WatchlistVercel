@@ -1,9 +1,50 @@
 import { Router, Request, Response } from 'express';
 import passport from 'passport';
+import bcrypt from 'bcryptjs';
 import { storage } from './types/storage';
 import { UserResponse } from '@shared/schema';
 
 const router = Router();
+
+// Register endpoint
+router.post('/register', async (req: Request, res: Response) => {
+  const { username, password, displayName } = req.body;
+  if (!username || !password || !displayName) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    const existingUser = await storage.getUserByUsername(username);
+    if (existingUser) {
+      return res.status(409).json({ error: 'Username already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await storage.createUser({
+      username,
+      password: hashedPassword,
+      displayName,
+      role: 'user',
+      createdAt: new Date(),
+    });
+
+    req.logIn(newUser, (err) => {
+      if (err) return res.status(500).json({ error: 'Login failed' });
+      req.session.authenticated = true;
+      req.session.createdAt = Date.now();
+      req.session.lastChecked = Date.now();
+      return res.json({
+        id: newUser.id,
+        username: newUser.username,
+        displayName: newUser.displayName,
+        role: newUser.role,
+        createdAt: newUser.createdAt,
+      });
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Registration failed' });
+  }
+});
 
 // Login endpoint
 router.post('/login', (req: Request, res: Response, next) => {
