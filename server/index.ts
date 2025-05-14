@@ -1,4 +1,5 @@
-import 'tsconfig-paths/register';
+import { register } from 'tsconfig-paths';
+register({ baseUrl: __dirname + '/..', paths: { '@shared/*': ['shared/*'] } });
 import express from 'express';
 import session from 'express-session';
 import passport from 'passport';
