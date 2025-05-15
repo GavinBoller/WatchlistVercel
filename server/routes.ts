@@ -25,22 +25,26 @@ router.post('/watchlist', isAuthenticated, async (req: Request, res: Response) =
   if (!title || typeof title !== 'string' || title.length > 255) {
     return res.status(400).json({ error: 'Valid title (max 255 characters) is required' });
   }
-  if (!status || !['to-watch', 'watching', 'watched'].includes(status)) {
+  const validStatuses = ['to-watch', 'watching', 'watched'];
+  if (!status || !validStatuses.includes(status)) {
     return res.status(400).json({ error: 'Status must be one of: to-watch, watching, watched' });
   }
+
+  // Map status to database enum
+  const dbStatus = status === 'to-watch' ? 'to_watch' : status;
 
   try {
     const entry: Omit<WatchlistEntry, 'id' | 'createdAt' | 'updatedAt'> = {
       userId: currentUser.id,
       movieId,
       title,
-      status,
+      status: dbStatus,
     };
     const newEntry = await storage.addToWatchlist(entry);
     res.status(201).json(newEntry);
   } catch (error) {
-    console.error('[ROUTES] Error adding to watchlist:', error);
-    res.status(500).json({ error: 'Failed to add to watchlist' });
+    console.error('[ROUTES] Detailed error adding to watchlist:', error);
+    res.status(500).json({ error: 'Failed to add to watchlist', details: error.message });
   }
 });
 
