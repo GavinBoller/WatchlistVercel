@@ -1,5 +1,12 @@
 import { Session } from 'express-session';
-import { UserResponse } from '@shared/schema';
+
+interface UserResponse {
+  id: number;
+  username: string;
+  displayName: string;
+  role: string;
+  createdAt: Date;
+}
 
 interface JwtUser {
   id: string;

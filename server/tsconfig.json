@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "baseUrl": "."
+  },
+  "include": [
+    "index.ts",
+    "authRoutes.ts",
+    "db.ts",
+    "schema.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "auth.ts",
+    "auth.ts.bak",
+    "backup",
+    "types",
+    "emergencyAuth.ts",
+    "emergencyLoginPage.ts",
+    "jwtAuth.ts",
+    "jwtAuthRoutes.ts",
+    "jwtMiddleware.ts",
+    "routes.ts",
+    "routes.ts.bak",
+    "emergencyWatchlist.ts",
+    "tokenRefresh.ts",
+    "types/*"
+  ]
+}

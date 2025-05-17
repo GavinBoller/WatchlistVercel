@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TMDBMovie, Platform } from '@shared/schema';
-import { useUserContext } from '@/lib/user-context';
+import { useUserContext } from '@/lib/user-context'; // Updated import
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -286,7 +286,7 @@ export const AddToWatchlistModal = ({ item, isOpen, onClose }: AddToWatchlistMod
                 method: "GET",
                 credentials: "include",
                 headers: {
-                  "Cache-Control": "no-cache, no-store",
+                  "Cache-Control": "no-cache, no-store, must-revalidate",
                   "Pragma": "no-cache"
                 }
               });

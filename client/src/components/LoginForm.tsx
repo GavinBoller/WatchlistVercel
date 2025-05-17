@@ -1,12 +1,11 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { UserResponse } from "@shared/schema";
-import { useJwtAuth } from "@/hooks/use-jwt-auth";
-import { useLocation } from "wouter";
+import { useState, FormEvent, useEffect, useRef } from 'react';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@radix-ui/react-dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { UserResponse } from '@shared/schema';
+import { useJwtAuth } from '../hooks/use-jwt-auth';
 
 interface LoginFormProps {
   onLoginSuccess: (user: UserResponse) => void;
@@ -14,112 +13,65 @@ interface LoginFormProps {
   onForgotPassword: () => void;
 }
 
-export const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onForgotPassword }: LoginFormProps) => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const { loginMutation } = useJwtAuth();
+export function LoginForm({ onLoginSuccess, onSwitchToRegister, onForgotPassword }: LoginFormProps) {
+  const [isOpen, setIsOpen] = useState(true);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
+  const { login } = useJwtAuth();
+  const usernameInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!username || !password) {
-      toast({
-        title: "Error",
-        description: "Please enter both username and password",
-        variant: "destructive",
-      });
-      return;
+  useEffect(() => {
+    if (isOpen && usernameInputRef.current) {
+      usernameInputRef.current.focus();
     }
-    
+  }, [isOpen]);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
     try {
-      // Add detailed debug info about login attempt
-      console.log("[AUTH TEST] Attempting login for test user:", username);
-      console.log("[AUTH TEST] This login will try multiple pathways if needed:");
-      console.log("[AUTH TEST] 1. Standard login via /api/login");
-      console.log("[AUTH TEST] 2. Emergency login via /api/auth/emergency-login");
-      console.log("[AUTH TEST] 3. Secondary emergency login via /api/emergency/watchlist/login");
-      
+      await login(username, password);
       toast({
-        title: "Logging in",
-        description: "Checking your credentials...",
+        title: 'Login Successful',
+        description: 'Welcome back!',
       });
-      
-      loginMutation.mutate(
-        { username, password },
-        {
-          onSuccess: (data) => {
-            // Extract user from the JWT response
-            const user = data.user;
-            
-            // Check if we have a valid user object before proceeding
-            if (!user || !user.id || !user.username) {
-              console.error("Invalid user data received:", user);
-              toast({
-                title: "Login error",
-                description: "Received invalid user data from server",
-                variant: "destructive",
-              });
-              return;
-            }
-            
-            console.log("[AUTH TEST] Login successful, user data:", user);
-            console.log("[AUTH TEST] JWT token received:", data.token ? "Yes (token length: " + data.token.length + ")" : "No");
-            
-            // Check if this was an emergency login
-            const emergencyMode = (user as any).emergencyMode;
-            
-            toast({
-              title: "Welcome back!",
-              description: emergencyMode ? 
-                `Connected using emergency pathway` : 
-                `You've successfully logged in as ${user.username}`,
-            });
-            
-            onLoginSuccess(user);
-            // Redirect to home page after successful login
-            setLocation("/");
-          },
-          onError: (error: Error) => {
-            console.error("[AUTH TEST] Login error:", error);
-            console.error("[AUTH TEST] All login pathways failed for user:", username);
-            toast({
-              title: "Login failed",
-              description: error.message || "There was a problem logging in. Please try again.",
-              variant: "destructive",
-            });
-          }
-        }
-      );
-    } catch (error) {
-      console.error("Unexpected error during login:", error);
+      onLoginSuccess({ id: 0, username, displayName: username, role: 'user', createdAt: new Date() });
+      setTimeout(() => setIsOpen(false), 100);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message);
       toast({
-        title: "Login error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive",
+        title: 'Login Failed',
+        description: message,
+        variant: 'destructive',
       });
     }
   };
 
-  const isLoading = loginMutation.isPending;
-
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle className="text-2xl text-center">Log In to Your Account</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="sm:max-w-[425px] bg-background p-6 rounded-lg z-50" aria-label="Login Form">
+        <div className="space-y-2">
+          <DialogTitle className="text-lg font-semibold">Sign In</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
+            Sign in to access your personalized movie watchlist
+          </DialogDescription>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="username">Username</Label>
             <Input
               id="username"
-              placeholder="Enter your username"
+              type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              disabled={isLoading}
-              autoComplete="off"
+              placeholder="Enter your username"
+              required
+              autoComplete="username"
+              ref={usernameInputRef}
             />
           </div>
           <div className="space-y-2">
@@ -127,45 +79,25 @@ export const LoginForm = ({ onLoginSuccess, onSwitchToRegister, onForgotPassword
             <Input
               id="password"
               type="password"
-              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
-              autoComplete="off"
+              placeholder="Enter your password"
+              required
+              autoComplete="current-password"
             />
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
-              <div className="flex items-center justify-center">
-                <span className="mr-2">Logging in</span>
-                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
-              </div>
-            ) : "Log In"}
-          </Button>
-          <div className="flex flex-col items-center gap-2 mt-4">
-            <p className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Button
-                variant="link"
-                className="p-0 h-auto"
-                onClick={onSwitchToRegister}
-                type="button"
-              >
-                Register
-              </Button>
-            </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onForgotPassword}
-              type="button"
-              className="text-xs"
-            >
-              Forgot your password?
+          {error && <p className="text-destructive text-sm">{error}</p>}
+          <div className="flex justify-end space-x-2">
+            <Button type="submit">Sign In</Button>
+            <Button variant="outline" onClick={onSwitchToRegister}>
+              Create Account
+            </Button>
+            <Button variant="outline" onClick={onForgotPassword}>
+              Forgot Password
             </Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
-};
+}

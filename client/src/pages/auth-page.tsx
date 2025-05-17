@@ -6,7 +6,6 @@ import { RegisterForm } from "@/components/RegisterForm";
 import { PasswordResetForm } from "@/components/PasswordResetForm";
 import { UserResponse } from "@shared/schema";
 
-// Add TypeScript interface for window global state
 declare global {
   interface Window {
     __authBackup?: {
@@ -21,22 +20,17 @@ type AuthView = "login" | "register" | "passwordReset";
 
 export default function AuthPage() {
   const [view, setView] = useState<AuthView>("login");
-  const { user } = useJwtAuth();
+  const { user, isLoading } = useJwtAuth();
   const [, setLocation] = useLocation();
 
-  // IMPROVED LOGOUT HANDLING
-  
-  // 1. Handle URL parameters with environment-aware behavior
   useEffect(() => {
     const loadEnvironmentUtils = async () => {
-      // Import environment utilities dynamically
       const {
         isProductionEnvironment,
         getEnvironmentName,
         clearAllClientSideStorage
       } = await import('../lib/environment-utils');
       
-      // Get URL parameters
       const urlParams = new URLSearchParams(window.location.search);
       const isPreload = urlParams.get('preload') === 'true';
       const fromLogout = urlParams.get('fromLogout') === 'true';
@@ -44,21 +38,16 @@ export default function AuthPage() {
       const clearFlag = urlParams.get('clear') === 'true';
       const hardFlag = urlParams.get('hard') === 'true';
       
-      // Environment detection
       const isProd = isProductionEnvironment();
       console.log(`Auth page loaded in ${getEnvironmentName()} environment`);
       console.log("URL flags:", { isPreload, fromLogout, forceFlag, clearFlag, hardFlag });
       
-      // Check if we just came from logout
       let justLoggedOut = false;
       try {
         justLoggedOut = localStorage.getItem('jusT_logged_out') === 'true' || 
-                         sessionStorage.getItem('jusT_logged_out') === 'true';
-                         
-        // Clear the flag immediately
+                        sessionStorage.getItem('jusT_logged_out') === 'true';
         localStorage.removeItem('jusT_logged_out');
         sessionStorage.removeItem('jusT_logged_out');
-        
         if (justLoggedOut) {
           console.log("Detected recent logout - will forcibly clear state");
         }
@@ -66,37 +55,23 @@ export default function AuthPage() {
         console.error("Error checking logout flag:", e);
       }
       
-      // Preload mode - just load assets but take no action
       if (isPreload) {
         console.log("Auth page preloaded for faster logout transition");
         return;
       }
       
-      // Determine if we need to clear state - now also check for direct logout flag
       const needStateClear = isProd || hardFlag || clearFlag || fromLogout || forceFlag || justLoggedOut;
       
-      // In development, ALWAYS clear state to prevent lingering issues
-      if (!isProd || needStateClear) {
+      if (needStateClear) {
         console.log(`Clearing client-side state in ${getEnvironmentName()} environment`);
-        
-        // Use our centralized utility for consistent behavior
-        clearAllClientSideStorage();
-        
-        // Also clear any cached auth state
+        // Preserve connect.sid cookie
         try {
-          // Clear tokens
           localStorage.removeItem('jwt_token');
           sessionStorage.removeItem('jwt_token');
-          
-          // Clear cookies
           document.cookie = 'jwt_token=; path=/; max-age=0';
-          document.cookie = 'watchlist.sid=; path=/; max-age=0';
-          
-          // Clear any backup auth data
           localStorage.removeItem('auth_backup');
           sessionStorage.removeItem('auth_backup');
           
-          // Loop through storage to clear any tokens
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key && (key.includes('token') || key.includes('user') || key.includes('auth'))) {
@@ -104,7 +79,6 @@ export default function AuthPage() {
             }
           }
           
-          // Clear window.__authBackup if it exists
           if (window.__authBackup) {
             try {
               delete window.__authBackup;
@@ -116,78 +90,62 @@ export default function AuthPage() {
           console.error("Error clearing auth state:", e);
         }
         
-        // Production and hard mode: make an additional server call
         if ((isProd || hardFlag || justLoggedOut) && !isPreload) {
           console.log("Making additional logout request from auth page");
           try {
-            // Use fire-and-forget pattern to avoid waiting
-            fetch('/api/logout', {
+            fetch('/api/auth/logout', {
               method: 'POST',
               credentials: 'include',
               headers: {
                 'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache, no-store',
+                'Cache-Control': 'no-cache',
                 'Pragma': 'no-cache'
               },
               cache: 'no-store'
-            }).catch(() => {
-              // Ignore errors intentionally
-            });
+            }).catch(() => {});
           } catch (e) {
-            // Ignore all errors in production mode
             console.error("Error during additional logout:", e);
           }
         }
       }
     };
-    
-    // Execute the async function
     loadEnvironmentUtils();
   }, []);
   
-  // 2. Special handler for reloading the page if needed
-  // This helps with stubborn session clearing in production
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const reload = urlParams.get('reload') === 'true';
     
     if (reload) {
-      // Remove the reload parameter to prevent reload loop
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('reload');
       window.history.replaceState({}, '', newUrl.toString());
       
-      // Check if we're in production and might need additional cookie clearing
       if (window.location.hostname.includes('replit.app')) {
         console.log("Production environment detected, applying special cookie clearing...");
-        // One more aggressive cookie clear
         const allCookies = document.cookie.split(';');
         for (let i = 0; i < allCookies.length; i++) {
           const cookie = allCookies[i];
           const eqPos = cookie.indexOf('=');
           const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-          document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;';
+          if (name.trim() !== 'connect.sid') {
+            document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;';
+          }
         }
       }
     }
   }, []);
 
-  // 3. Redirect to home if already logged in and not in preload mode
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const isPreload = urlParams.get('preload') === 'true';
-    const force = urlParams.get('force') === 'true';
-    
-    // If this is a forced auth page visit from logout, don't redirect even if user state is still cached
-    if (user && !isPreload && !force) {
-      console.log("User still logged in, redirecting to home");
-      setLocation("/");
+    if (!isLoading && user) {
+      console.log('[AUTH PAGE] User authenticated, redirecting to /');
+      setLocation('/');
     }
-  }, [user, setLocation]);
+  }, [user, isLoading, setLocation]);
 
   const handleAuthSuccess = (user: UserResponse) => {
-    // The useAuth hook will handle updating the user state
-    // This will trigger the redirect effect above
+    console.log('[AUTH PAGE] Auth success, redirecting to /');
+    setLocation('/');
   };
 
   const handleSwitchToRegister = () => {
@@ -202,18 +160,17 @@ export default function AuthPage() {
     setView("passwordReset");
   };
 
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="w-full min-h-screen flex flex-col md:flex-row">
-      {/* Form section */}
       <div className="md:w-1/2 p-6 md:p-10 flex items-center justify-center">
         <div className="w-full max-w-md">
           <div className="mb-8">
             <h1 className="text-3xl font-bold">
-              {view === "login" 
-                ? "Welcome Back" 
-                : view === "register" 
-                ? "Create Account" 
-                : "Reset Password"}
+              {view === "login" ? "Welcome Back" : view === "register" ? "Create Account" : "Reset Password"}
             </h1>
             <p className="text-muted-foreground mt-2">
               {view === "login"
@@ -245,8 +202,7 @@ export default function AuthPage() {
             />
           )}
           
-          {/* Help text for login issues */}
-          <div className="mt-6 pt-6 border-t border-border">
+          <div className="mt-6 pt-6 border-t border-gray-200">
             <h3 className="text-sm font-medium mb-2">Having trouble logging in?</h3>
             <p className="text-xs text-muted-foreground mb-2">
               If you're experiencing login issues, try resetting your password or clearing your browser cache.
@@ -254,8 +210,6 @@ export default function AuthPage() {
           </div>
         </div>
       </div>
-      
-      {/* Hero section */}
       <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-primary/90 to-primary/50 p-10 flex-col justify-center">
         <div className="max-w-lg">
           <h2 className="text-4xl font-bold text-white mb-6">Discover and Track Your Favorite Movies</h2>

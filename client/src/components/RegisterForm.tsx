@@ -1,249 +1,117 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { UserResponse } from "@shared/schema";
-import { useJwtAuth } from "@/hooks/use-jwt-auth";
-import { useLocation } from "wouter";
-import { queryClient } from "@/lib/queryClient";
-import { simpleRegister, shouldUseSimpleRegistration } from "@/lib/simpleAuth";
-import { isProductionEnvironment } from "@/lib/environment-utils";
+import { useState, FormEvent, useEffect, useRef } from 'react';
+import { useLocation } from 'wouter';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@radix-ui/react-dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { UserResponse } from '@shared/schema';
+import { useJwtAuth } from '../hooks/use-jwt-auth';
 
 interface RegisterFormProps {
   onRegisterSuccess: (user: UserResponse) => void;
   onSwitchToLogin: () => void;
 }
 
-export const RegisterForm = ({ onRegisterSuccess, onSwitchToLogin }: RegisterFormProps) => {
-  const [username, setUsername] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const { registerMutation } = useJwtAuth();
+export function RegisterForm({ onRegisterSuccess, onSwitchToLogin }: RegisterFormProps) {
+  const [isOpen, setIsOpen] = useState(true);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [isSimpleRegistering, setIsSimpleRegistering] = useState(false);
+  const { register } = useJwtAuth();
+  const usernameInputRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (isOpen && usernameInputRef.current) {
+      usernameInputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
-    if (!username || !password || !confirmPassword) {
+    setError(null);
+
+    try {
+      await register(username, password, displayName);
       toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
+        title: 'Registration Successful',
+        description: 'You can now log in with your new account.',
       });
-      return;
-    }
-    
-    if (password !== confirmPassword) {
+      onRegisterSuccess({ id: 0, username, displayName, role: 'user', createdAt: new Date() });
+      setTimeout(() => {
+        setIsOpen(false);
+        setLocation('/auth');
+      }, 100);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message);
       toast({
-        title: "Error",
-        description: "Passwords do not match",
-        variant: "destructive",
+        title: 'Registration Failed',
+        description: message,
+        variant: 'destructive',
       });
-      return;
-    }
-    
-    if (password.length < 6) {
-      toast({
-        title: "Error",
-        description: "Password must be at least 6 characters long",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    const useSimpleRegistration = shouldUseSimpleRegistration();
-    const isProd = isProductionEnvironment();
-    
-    // Show registration toast
-    toast({
-      title: "Creating account",
-      description: "Setting up your account...",
-      duration: 3000,
-    });
-    
-    if (useSimpleRegistration) {
-      // Use the simplified registration flow for production
-      try {
-        setIsSimpleRegistering(true);
-        
-        const result = await simpleRegister({
-          username,
-          password,
-          displayName: displayName || undefined
-        });
-                
-        // Signal success to parent component
-        onRegisterSuccess(result.user);
-        
-        // Show success message
-        toast({
-          title: "Account created successfully",
-          description: "Your account has been created and you are now logged in.",
-          duration: 3000,
-        });
-        
-        // Pre-populate the cache with user data
-        queryClient.setQueryData(["/api/jwt/user"], result.user);
-        
-        // Redirect to home page
-        setLocation("/");
-        
-      } catch (error) {
-        console.error("Simple registration failed:", error);
-        setIsSimpleRegistering(false);
-        
-        // Extract a more meaningful error message
-        let errorMessage = "Could not create account";
-        if (error instanceof Error) {
-          errorMessage = error.message;
-          
-          // Clean up the error message for better readability
-          if (errorMessage.includes('Registration Failed - 500')) {
-            errorMessage = 'Server error during registration. Please try again in a moment.';
-          } else if (errorMessage.includes('duplicate key') || 
-                     errorMessage.includes('unique constraint') ||
-                     errorMessage.includes('already exists')) {
-            errorMessage = 'Username already exists. Please choose a different username.';
-          } else if (errorMessage.includes('network') || 
-                     errorMessage.includes('Failed to fetch')) {
-            errorMessage = 'Network error. Please check your connection and try again.';
-          }
-        }
-        
-        // Show detailed error toast
-        toast({
-          title: "Registration failed",
-          description: errorMessage,
-          variant: "destructive",
-          duration: 5000,
-        });
-      }
-    } else {
-      // Standard registration flow for development
-      registerMutation.mutate(
-        {
-          username,
-          displayName: displayName || username,
-          password,
-          confirmPassword
-        },
-        {
-          onSuccess: (data) => {
-            console.log("Registration successful");
-            
-            // Signal success to parent component
-            onRegisterSuccess(data.user);
-            
-            // Store temporary registration data to help with protected routes
-            window.__tempRegistrationData = {
-              timestamp: Date.now(),
-              username: username
-            };
-            
-            // Redirect to home page
-            setLocation("/");
-          },
-          onError: (error: Error) => {
-            console.error("Registration error:", error);
-          }
-        }
-      );
     }
   };
 
-  // Track loading state
-  const isLoading = registerMutation.isPending || isSimpleRegistering;
-
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle className="text-2xl text-center">Create an Account</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogContent className="sm:max-w-[425px] bg-background p-6 rounded-lg z-50" aria-label="Register Form">
+        <div className="space-y-2">
+          <DialogTitle className="text-lg font-semibold">Create Account</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
+            Join to start tracking movies and shows you love
+          </DialogDescription>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="username">Username*</Label>
+            <Label htmlFor="username">Username</Label>
             <Input
               id="username"
-              placeholder="Choose a username"
+              type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              disabled={isLoading}
+              placeholder="Enter your username"
               required
-              autoComplete="off"
+              autoComplete="username"
+              ref={usernameInputRef}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="displayName">Display Name (optional)</Label>
+            <Label htmlFor="displayName">Display Name</Label>
             <Input
               id="displayName"
-              placeholder="How you want to be called"
+              type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              disabled={isLoading}
-              autoComplete="off"
+              placeholder="Enter your display name"
+              required
+              autoComplete="name"
             />
-            <p className="text-xs text-muted-foreground">
-              This will be displayed in your profile. If left empty, your username will be used.
-            </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="register-password">Password*</Label>
+            <Label htmlFor="password">Password</Label>
             <Input
-              id="register-password"
+              id="password"
               type="password"
-              placeholder="Create a password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
+              placeholder="Enter your password"
               required
-              autoComplete="off"
-            />
-            <p className="text-xs text-muted-foreground">
-              Must be at least 6 characters long
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirm-password">Confirm Password*</Label>
-            <Input
-              id="confirm-password"
-              type="password"
-              placeholder="Confirm your password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={isLoading}
-              required
-              autoComplete="off"
+              autoComplete="new-password"
             />
           </div>
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
-              <div className="flex items-center justify-center">
-                <span className="mr-2">Creating Account</span>
-                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
-              </div>
-            ) : "Register"}
-          </Button>
-          <div className="text-center mt-4">
-            <p className="text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <Button
-                variant="link"
-                className="p-0 h-auto"
-                onClick={onSwitchToLogin}
-                type="button"
-              >
-                Log In
-              </Button>
-            </p>
+          {error && <p className="text-destructive text-sm">{error}</p>}
+          <div className="flex justify-end space-x-2">
+            <Button type="submit">Register</Button>
+            <Button variant="outline" onClick={onSwitchToLogin}>
+              Back to Login
+            </Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
-};
+}

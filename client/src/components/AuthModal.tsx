@@ -6,11 +6,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { LoginForm } from "./LoginForm";
 import { RegisterForm } from "./RegisterForm";
 import { PasswordResetForm } from "./PasswordResetForm";
 import { UserResponse } from "@shared/schema";
-import { useJwtAuth } from '../hooks/use-jwt-auth';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -24,7 +24,6 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }: AuthModalProps) =>
   const [view, setView] = useState<AuthView>("login");
 
   const handleAuthSuccess = (user: UserResponse) => {
-    // The user will be set in the auth context automatically by the mutations
     onClose();
   };
 
@@ -40,14 +39,12 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }: AuthModalProps) =>
     setView("passwordReset");
   };
 
-  // Determine the title based on current view
   const title = view === "login" 
     ? "Welcome Back" 
     : view === "register" 
     ? "Join MovieTracker" 
     : "Reset Password";
     
-  // Determine the description based on current view
   const description = view === "login"
     ? "Log in to access your watchlist and track your movies"
     : view === "register"
@@ -57,13 +54,13 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess }: AuthModalProps) =>
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
+        <VisuallyHidden>
+          <DialogTitle id="auth-dialog-title">{title}</DialogTitle>
+          <DialogDescription id="auth-dialog-description">{description}</DialogDescription>
+        </VisuallyHidden>
         <DialogHeader>
-          <DialogTitle id="auth-dialog-title" className="text-center text-2xl">
-            {title}
-          </DialogTitle>
-          <DialogDescription id="auth-dialog-description" className="text-center">
-            {description}
-          </DialogDescription>
+          <h2 className="text-center text-2xl">{title}</h2>
+          <p className="text-center text-muted-foreground">{description}</p>
         </DialogHeader>
         
         {view === "login" && (

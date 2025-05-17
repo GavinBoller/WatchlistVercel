@@ -1,64 +1,101 @@
-import React, { useEffect } from "react";
-import { useLocation } from "wouter";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./lib/queryClient";
-import { Toaster } from "@/components/ui/toaster";
-import NotFound from "@/pages/not-found";
-import Header from "@/components/Header";
-import SearchPage from "@/pages/SearchPage";
-import WatchlistPage from "@/pages/WatchlistPage";
-import AuthPage from "@/pages/auth-page";
-import AdminDashboardPage from "@/pages/AdminDashboardPage";
-import { UserContext } from "@/lib/user-context";
-import { Switch, Route } from "wouter";
-import { JwtAuthProvider, useJwtAuth } from "@/hooks/use-jwt-auth";
-import { ProtectedRoute } from "./lib/protected-route";
-import EmergencyAuth, { setupEmergencyAuth } from "./components/EmergencyAuth";
+import React, { useEffect, useState } from 'react';
+import { useLocation, Switch, Route } from 'wouter';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './lib/queryClient';
+import { Toaster } from '@/components/ui/toaster';
+import NotFound from '@/pages/not-found';
+import Header from '@/components/Header';
+import SearchPage from '@/pages/SearchPage';
+import WatchlistPage from '@/pages/WatchlistPage';
+import AuthPage from '@/pages/auth-page';
+import AdminDashboardPage from '@/pages/AdminDashboardPage';
+import { ProtectedRoute } from './lib/ProtectedRoute';
 
-/**
- * Internal app structure with authentication-aware components
- * This component must be rendered inside the AuthProvider
- */
+interface User {
+  id: number;
+  username: string;
+  displayName: string;
+}
+
+interface UserContextValue {
+  currentUser: User | null;
+  setCurrentUser: (user: User | null) => void;
+  login: () => void;
+  logout: () => void;
+  isAuthenticated: boolean;
+}
+
+export const UserContext = React.createContext<UserContextValue>({
+  currentUser: null,
+  setCurrentUser: () => {},
+  login: () => {},
+  logout: () => {},
+  isAuthenticated: false,
+});
+
 function AppInternal() {
   const [location, setLocation] = useLocation();
-  const { user, logoutMutation } = useJwtAuth();
-  
-  // Prepare the user context value for backward compatibility
-  const userContextValue = {
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/auth/status', {
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (data.isAuthenticated && data.user) {
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user:', error);
+        setUser(null);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  const userContextValue: UserContextValue = {
     currentUser: user,
-    setCurrentUser: () => {}, // Deprecated
-    login: () => {}, // Deprecated
-    logout: () => logoutMutation.mutateAsync(),
-    isAuthenticated: !!user
+    setCurrentUser: setUser,
+    login: () => {},
+    logout: async () => {
+      try {
+        await fetch('http://localhost:3000/api/auth/logout', {
+          method: 'POST',
+          credentials: 'include',
+        });
+        setUser(null);
+      } catch (error) {
+        console.error('Logout failed:', error);
+      }
+    },
+    isAuthenticated: !!user,
   };
-  
+
   return (
     <UserContext.Provider value={userContextValue}>
       <div className="flex flex-col min-h-screen">
-        <Header 
+        <Header
           onTabChange={(tab) => {
-            if (tab === "search") {
-              setLocation("/");
-            } else if (tab === "watchlist") {
-              setLocation("/watched");
+            if (tab === 'search') {
+              setLocation('/');
+            } else if (tab === 'watchlist') {
+              setLocation('/watched');
             }
           }}
-          activeTab={location === "/" ? "search" : "watchlist"}
+          activeTab={location === '/' ? 'search' : 'watchlist'}
         />
-        
         <main className="flex-grow">
           <Switch>
             <ProtectedRoute path="/" component={SearchPage} />
             <ProtectedRoute path="/watched" component={WatchlistPage} />
             <ProtectedRoute path="/admin" component={AdminDashboardPage} />
             <Route path="/auth" component={AuthPage} />
-            {/* API paths should be ignored by the client-side router */}
             <Route path="/api/:rest*">
-              {() => {
-                // This is just a placeholder that will never be rendered
-                // API requests will be handled by the server
-                return null;
-              }}
+              {() => null}
             </Route>
             <Route component={NotFound} />
           </Switch>
@@ -69,24 +106,13 @@ function AppInternal() {
   );
 }
 
-/**
- * Main App component with all providers set up
- * This ensures correct provider nesting and prevents context errors
- */
 function App() {
-  // Initialize emergency auth mechanism when app loads
-  useEffect(() => {
-    setupEmergencyAuth();
-    console.log('[EMERGENCY] Emergency auth system initialized');
-  }, []);
-  
   return (
-    <QueryClientProvider client={queryClient}>
-      <JwtAuthProvider>
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
         <AppInternal />
-        <EmergencyAuth showDebug={false} />
-      </JwtAuthProvider>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </React.StrictMode>
   );
 }
 
