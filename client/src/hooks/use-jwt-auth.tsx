@@ -11,7 +11,6 @@ interface JwtAuthContextType {
   user: UserResponse | null;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
 }
 
 export const JwtAuthContext = createContext<JwtAuthContextType | undefined>(undefined);
@@ -57,23 +56,14 @@ export function JwtAuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = async () => {
-    await fetch('http://localhost:3000/api/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
-    });
-    queryClient.invalidateQueries({ queryKey: ['auth'] });
-  };
-
   const value: JwtAuthContextType = {
     user: authQuery.data?.user ?? null,
     isAuthenticated: authQuery.data?.authenticated ?? false,
     login,
-    logout,
   };
 
   if (isChecking || authQuery.isLoading) {
-    return <div>Loading...</div>;
+    return <div>Loading authentication...</div>;
   }
 
   return <JwtAuthContext.Provider value={value}>{children}</JwtAuthContext.Provider>;

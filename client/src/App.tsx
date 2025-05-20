@@ -1,17 +1,14 @@
+import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import AuthPage from '@/pages/auth-page';
-import { SearchPage } from '@/pages/SearchPage';
+import SearchPage from '@/pages/SearchPage';
 import WatchlistPage from '@/pages/WatchlistPage';
-import { AdminDashboardPage } from '@/pages/AdminDashboardPage';
-import { ProtectedRoute } from '@/lib/ProtectedRoute';
+import AdminDashboardPage from '@/pages/AdminDashboardPage';
+import ProtectedRoute from '@/lib/ProtectedRoute';
 import { useJwtAuth } from '@/hooks/use-jwt-auth';
 
-interface SearchPageProps {
-  movie: any; // Adjust based on actual type
-}
-
 export default function App() {
-  const { user } = useJwtAuth();
+  const { user, isAuthenticated } = useJwtAuth();
 
   return (
     <BrowserRouter>
@@ -20,20 +17,24 @@ export default function App() {
         <Route
           path="/"
           element={
-            <ProtectedRoute
-              component={() => <SearchPage movie={{} as any} />}
-            />
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <SearchPage />
+            </ProtectedRoute>
           }
         />
         <Route
           path="/watchlist"
-          element={<ProtectedRoute component={WatchlistPage} />}
+          element={
+            <ProtectedRoute isAuthenticated={isAuthenticated}>
+              <WatchlistPage />
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/admin"
           element={
             user?.role === 'admin' ? (
-              <ProtectedRoute component={AdminDashboardPage} />
+              <AdminDashboardPage />
             ) : (
               <AuthPage />
             )

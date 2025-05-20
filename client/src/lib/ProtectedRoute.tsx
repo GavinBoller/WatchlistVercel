@@ -1,16 +1,13 @@
+import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useJwtAuth } from '@/hooks/use-jwt-auth';
 
 interface ProtectedRouteProps {
-  component: React.ComponentType;
+  isAuthenticated: boolean;
+  children: React.ReactNode;
 }
 
-export function ProtectedRoute({ component: Component }: ProtectedRouteProps) {
-  const { isAuthenticated } = useJwtAuth();
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ isAuthenticated, children }) => {
+  return isAuthenticated ? <>{children}</> : <Navigate to="/auth" />;
+};
 
-  if (!isAuthenticated) {
-    return <Navigate to="/auth" />;
-  }
-
-  return <Component />;
-}
+export default ProtectedRoute;

@@ -6,7 +6,12 @@ export default defineConfig({
   server: {
     port: 5173,
   },
-  build: {
-    assetsInlineLimit: 0, // Disable lazy loading for images
+  resolve: {
+    alias: {
+      '@': '/src',
+      '@/pages': '/src/pages',
+      '@/lib': '/src/lib',
+      '@/hooks': '/src/hooks',
+    },
   },
 });
