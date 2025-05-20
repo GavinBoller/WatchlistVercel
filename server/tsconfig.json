@@ -1,19 +1,18 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "CommonJS",
+    "target": "es6",
+    "module": "commonjs",
     "outDir": "./dist",
-    "rootDir": "../",
+    "rootDir": ".",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
+    "types": ["node", "express", "jest"],
     "baseUrl": ".",
     "paths": {
-      "@shared/*": ["../shared/*"]
-    },
-    "typeRoots": ["./types", "./node_modules/@types"]
+      "@shared/*": ["src/shared/*"]
+    }
   },
-  "include": ["**/*.ts", "types/**/*.d.ts", "../shared/**/*.ts"],
-  "exclude": ["node_modules", "backup/**/*", "dist"]
+  "include": ["src/**/*", "*.ts"],
+  "exclude": ["node_modules", "dist"]
 }
