@@ -31,7 +31,7 @@ declare global {
  * Includes special protection for problematic users based on username patterns
  * @returns true if auto-logout pattern is detected, false otherwise
  */
-export function detectAutoLogoutPattern(): boolean {
+function detectAutoLogoutPattern(): boolean {
   try {
     // Check if user just logged out intentionally - in which case we should skip detection
     const recentLogoutTime = localStorage.getItem('movietracker_intentional_logout_time');
@@ -162,7 +162,7 @@ export function detectAutoLogoutPattern(): boolean {
  * Check the current session status with a single direct API call
  * Returns session status information or null if check fails
  */
-export async function checkSessionStatus(): Promise<SessionCheckResult | null> {
+async function checkSessionStatus(): Promise<SessionCheckResult | null> {
   // Record start time for performance logging
   const startTime = performance.now();
   const sessionUrl = "/api/session";
@@ -218,7 +218,7 @@ export async function checkSessionStatus(): Promise<SessionCheckResult | null> {
  * @param username Optional username to try to recover specifically
  * @returns A promise that resolves to the recovery result
  */
-export async function attemptSessionRecovery(userId?: number, username?: string): Promise<SessionCheckResult | null> {
+async function attemptSessionRecovery(userId?: number, username?: string): Promise<SessionCheckResult | null> {
   // DISABLED: Session auto-recovery has been disabled to prevent unwanted authentication
   console.log('[SESSION-RECOVERY] Session auto-recovery is disabled');
   return null;
@@ -232,7 +232,7 @@ export async function attemptSessionRecovery(userId?: number, username?: string)
  * @param errorMessage Optional error message from the API
  * @param redirectDelay Delay in milliseconds before redirecting to auth page
  */
-export async function handleSessionExpiration(
+async function handleSessionExpiration(
   errorCode?: string | number, 
   errorMessage?: string,
   redirectDelay: number = 1500
@@ -338,7 +338,7 @@ export async function handleSessionExpiration(
  */
 type ErrorType = 'auth_error' | 'network_error' | 'other_error';
 
-export function isSessionError(error: any): { 
+function isSessionError(error: any): { 
   isAuthError: boolean;
   isNetworkError: boolean;
   errorType: ErrorType;
@@ -436,6 +436,21 @@ export function isSessionError(error: any): {
  * Legacy version for backward compatibility
  * @deprecated Use the detailed version instead
  */
-export function isSessionErrorOld(error: any): boolean {
+function isSessionErrorOld(error: any): boolean {
   return isSessionError(error).isAuthError;
 }
+
+export const sessionUtils = {
+  removeToken: () => {
+    console.log('[SessionUtils] Removing token');
+    localStorage.removeItem('jwt_token');
+    sessionStorage.removeItem('jwt_token');
+    document.cookie = 'jwt_token=; path=/; max-age=0';
+  },
+  detectAutoLogoutPattern,
+  checkSessionStatus,
+  attemptSessionRecovery,
+  handleSessionExpiration,
+  isSessionError,
+  isSessionErrorOld,
+};

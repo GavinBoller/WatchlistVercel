@@ -1,167 +1,72 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
-import { useJwtAuth } from "../hooks/use-jwt-auth";
-import { LoginForm } from "@/components/LoginForm";
-import { RegisterForm } from "@/components/RegisterForm";
-import { PasswordResetForm } from "@/components/PasswordResetForm";
-import { UserResponse } from "@shared/schema";
+import React, { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'wouter';
+import { useJwtAuth } from '../hooks/use-jwt-auth';
+import { LoginForm } from '@/components/LoginForm';
+import { RegisterForm } from '@/components/RegisterForm';
+import { PasswordResetForm } from '@/components/PasswordResetForm';
+import { toast } from 'sonner';
+import { isProductionEnvironment } from '../lib/environment-utils';
+import { UserResponse } from '@shared/schema';
 
-declare global {
-  interface Window {
-    __authBackup?: {
-      userId: number;
-      username: string;
-      timestamp: number;
-    } | null;
-  }
-}
+type AuthView = 'login' | 'register' | 'passwordReset';
 
-type AuthView = "login" | "register" | "passwordReset";
+export function AuthPage() {
+  const { user, isAuthenticated, isLoading } = useJwtAuth();
+  const [location, setLocation] = useLocation();
+  const [view, setView] = useState<AuthView>('login');
 
-export default function AuthPage() {
-  const [view, setView] = useState<AuthView>("login");
-  const { user, isLoading } = useJwtAuth();
-  const [, setLocation] = useLocation();
+  console.log('[AUTH PAGE] Auth page loaded in', isProductionEnvironment() ? 'PRODUCTION' : 'DEVELOPMENT', 'environment');
 
-  useEffect(() => {
-    const loadEnvironmentUtils = async () => {
-      const {
-        isProductionEnvironment,
-        getEnvironmentName,
-        clearAllClientSideStorage
-      } = await import('../lib/environment-utils');
-      
-      const urlParams = new URLSearchParams(window.location.search);
-      const isPreload = urlParams.get('preload') === 'true';
-      const fromLogout = urlParams.get('fromLogout') === 'true';
-      const forceFlag = urlParams.get('force') === 'true';
-      const clearFlag = urlParams.get('clear') === 'true';
-      const hardFlag = urlParams.get('hard') === 'true';
-      
-      const isProd = isProductionEnvironment();
-      console.log(`Auth page loaded in ${getEnvironmentName()} environment`);
-      console.log("URL flags:", { isPreload, fromLogout, forceFlag, clearFlag, hardFlag });
-      
-      let justLoggedOut = false;
-      try {
-        justLoggedOut = localStorage.getItem('jusT_logged_out') === 'true' || 
-                        sessionStorage.getItem('jusT_logged_out') === 'true';
-        localStorage.removeItem('jusT_logged_out');
-        sessionStorage.removeItem('jusT_logged_out');
-        if (justLoggedOut) {
-          console.log("Detected recent logout - will forcibly clear state");
-        }
-      } catch (e) {
-        console.error("Error checking logout flag:", e);
-      }
-      
-      if (isPreload) {
-        console.log("Auth page preloaded for faster logout transition");
-        return;
-      }
-      
-      const needStateClear = isProd || hardFlag || clearFlag || fromLogout || forceFlag || justLoggedOut;
-      
-      if (needStateClear) {
-        console.log(`Clearing client-side state in ${getEnvironmentName()} environment`);
-        // Preserve connect.sid cookie
-        try {
-          localStorage.removeItem('jwt_token');
-          sessionStorage.removeItem('jwt_token');
-          document.cookie = 'jwt_token=; path=/; max-age=0';
-          localStorage.removeItem('auth_backup');
-          sessionStorage.removeItem('auth_backup');
-          
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && (key.includes('token') || key.includes('user') || key.includes('auth'))) {
-              localStorage.removeItem(key);
-            }
-          }
-          
-          if (window.__authBackup) {
-            try {
-              delete window.__authBackup;
-            } catch (e) {
-              window.__authBackup = null;
-            }
-          }
-        } catch (e) {
-          console.error("Error clearing auth state:", e);
-        }
-        
-        if ((isProd || hardFlag || justLoggedOut) && !isPreload) {
-          console.log("Making additional logout request from auth page");
-          try {
-            fetch('/api/auth/logout', {
-              method: 'POST',
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-              },
-              cache: 'no-store'
-            }).catch(() => {});
-          } catch (e) {
-            console.error("Error during additional logout:", e);
-          }
-        }
-      }
+  // Parse URL flags
+  const urlFlags = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      fromLogout: params.get('fromLogout') === 'true',
+      preload: params.get('preload') === 'true',
+      force: params.get('force') === 'true',
+      clear: params.get('clear') === 'true',
+      hard: params.get('hard') === 'true',
+      reload: params.get('reload') === 'true',
     };
-    loadEnvironmentUtils();
   }, []);
-  
+
+  console.log('[AUTH PAGE] URL flags:', urlFlags);
+
+  // Handle logout toast and cleanup
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const reload = urlParams.get('reload') === 'true';
-    
-    if (reload) {
+    if (urlFlags.fromLogout) {
+      toast.success('You have been logged out');
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('fromLogout');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+    if (urlFlags.reload) {
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('reload');
       window.history.replaceState({}, '', newUrl.toString());
-      
-      if (window.location.hostname.includes('replit.app')) {
-        console.log("Production environment detected, applying special cookie clearing...");
-        const allCookies = document.cookie.split(';');
-        for (let i = 0; i < allCookies.length; i++) {
-          const cookie = allCookies[i];
-          const eqPos = cookie.indexOf('=');
-          const name = eqPos > -1 ? cookie.substr(0, eqPos) : cookie;
-          if (name.trim() !== 'connect.sid') {
-            document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;';
-          }
-        }
-      }
     }
-  }, []);
+  }, [urlFlags]);
 
+  // Redirect if authenticated
   useEffect(() => {
-    if (!isLoading && user) {
+    if (!isLoading && isAuthenticated && user && location !== '/') {
       console.log('[AUTH PAGE] User authenticated, redirecting to /');
       setLocation('/');
     }
-  }, [user, isLoading, setLocation]);
+  }, [isAuthenticated, user, isLoading, location, setLocation]);
 
-  const handleAuthSuccess = (user: UserResponse) => {
-    console.log('[AUTH PAGE] Auth success, redirecting to /');
-    setLocation('/');
-  };
-
-  const handleSwitchToRegister = () => {
-    setView("register");
-  };
-
-  const handleSwitchToLogin = () => {
-    setView("login");
-  };
-
-  const handleSwitchToPasswordReset = () => {
-    setView("passwordReset");
-  };
+  if (urlFlags.preload) {
+    console.log('[AUTH PAGE] Preloaded for faster logout transition');
+    return null;
+  }
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        <p>Verifying Authentication</p>
+      </div>
+    );
   }
 
   return (
@@ -170,38 +75,34 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           <div className="mb-8">
             <h1 className="text-3xl font-bold">
-              {view === "login" ? "Welcome Back" : view === "register" ? "Create Account" : "Reset Password"}
+              {view === 'login' ? 'Welcome Back' : view === 'register' ? 'Create Account' : 'Reset Password'}
             </h1>
             <p className="text-muted-foreground mt-2">
-              {view === "login"
-                ? "Sign in to access your personalized movie watchlist"
-                : view === "register"
-                ? "Join to start tracking movies and shows you love"
-                : "Enter your details to reset your password"}
+              {view === 'login'
+                ? 'Sign in to access your personalized movie watchlist'
+                : view === 'register'
+                ? 'Join to start tracking movies and shows you love'
+                : 'Enter your details to reset your password'}
             </p>
           </div>
 
-          {view === "login" && (
+          {view === 'login' && (
             <LoginForm
-              onLoginSuccess={handleAuthSuccess}
-              onSwitchToRegister={handleSwitchToRegister}
-              onForgotPassword={handleSwitchToPasswordReset}
+              onLoginSuccess={() => setLocation('/')}
+              onSwitchToRegister={() => setView('register')}
+              onForgotPassword={() => setView('passwordReset')}
             />
           )}
-          
-          {view === "register" && (
+          {view === 'register' && (
             <RegisterForm
-              onRegisterSuccess={handleAuthSuccess}
-              onSwitchToLogin={handleSwitchToLogin}
+              onRegisterSuccess={() => setLocation('/auth')}
+              onSwitchToLogin={() => setView('login')}
             />
           )}
-          
-          {view === "passwordReset" && (
-            <PasswordResetForm
-              onBack={handleSwitchToLogin}
-            />
+          {view === 'passwordReset' && (
+            <PasswordResetForm onBack={() => setView('login')} />
           )}
-          
+
           <div className="mt-6 pt-6 border-t border-gray-200">
             <h3 className="text-sm font-medium mb-2">Having trouble logging in?</h3>
             <p className="text-xs text-muted-foreground mb-2">

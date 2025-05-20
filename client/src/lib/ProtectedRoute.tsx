@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import React from 'react';
 import { Route, Redirect } from 'wouter';
+import { useJwtAuth } from '../hooks/use-jwt-auth';
 import { Loader2 } from 'lucide-react';
 
 export function ProtectedRoute({
@@ -9,28 +10,9 @@ export function ProtectedRoute({
   path: string;
   component: () => React.JSX.Element;
 }) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { isAuthenticated, isLoading } = useJwtAuth();
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('http://localhost:3000/api/auth/status', {
-          credentials: 'include',
-        });
-        const data = await response.json();
-        setIsAuthenticated(data.isAuthenticated);
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        setIsAuthenticated(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    checkAuth();
-  }, []);
-
-  if (isLoading) {
+  if (isLoading && !isAuthenticated) {
     return (
       <Route path={path}>
         <div className="flex items-center justify-center min-h-screen">
@@ -45,9 +27,5 @@ export function ProtectedRoute({
     return <Route path={path}><Redirect to="/auth" /></Route>;
   }
 
-  return (
-    <Route path={path}>
-      <Component />
-    </Route>
-  );
+  return <Route path={path}><Component /></Route>;
 }

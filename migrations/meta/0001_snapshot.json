@@ -1,6 +1,6 @@
 {
-  "id": "81e77492-a433-45fe-a36b-cb535ec73355",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "78c583fe-dbfe-4a27-8500-d42c3de7461a",
+  "prevId": "81e77492-a433-45fe-a36b-cb535ec73355",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -41,6 +41,12 @@
         "release_date": {
           "name": "release_date",
           "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vote_average": {
+          "name": "vote_average",
+          "type": "double precision",
           "primaryKey": false,
           "notNull": false
         },

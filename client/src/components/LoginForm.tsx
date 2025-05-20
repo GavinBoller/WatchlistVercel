@@ -1,11 +1,10 @@
-import { useState, FormEvent, useEffect, useRef } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@radix-ui/react-dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { UserResponse } from '@shared/schema';
+import React, { useState, useEffect, useRef } from 'react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { toast } from 'sonner';
 import { useJwtAuth } from '../hooks/use-jwt-auth';
+import { UserResponse } from '@shared/schema';
 
 interface LoginFormProps {
   onLoginSuccess: (user: UserResponse) => void;
@@ -14,90 +13,87 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onLoginSuccess, onSwitchToRegister, onForgotPassword }: LoginFormProps) {
-  const [isOpen, setIsOpen] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
-  const { login } = useJwtAuth();
+  const { login, isLoading } = useJwtAuth();
   const usernameInputRef = useRef<HTMLInputElement>(null);
 
+  // Focus username input on mount
   useEffect(() => {
-    if (isOpen && usernameInputRef.current) {
+    if (usernameInputRef.current) {
       usernameInputRef.current.focus();
     }
-  }, [isOpen]);
+  }, []);
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-
+    console.log('[LoginForm] Submitting:', { username });
     try {
-      await login(username, password);
-      toast({
-        title: 'Login Successful',
-        description: 'Welcome back!',
-      });
-      onLoginSuccess({ id: 0, username, displayName: username, role: 'user', createdAt: new Date() });
-      setTimeout(() => setIsOpen(false), 100);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
-      setError(message);
-      toast({
-        title: 'Login Failed',
-        description: message,
-        variant: 'destructive',
-      });
+      const response = await login({ username, password });
+      console.log('[LoginForm] Login response:', response);
+      if (response.user) {
+        onLoginSuccess(response.user);
+      }
+      setUsername('');
+      setPassword('');
+    } catch (error) {
+      console.error('[LoginForm] Login error:', error);
+      toast.error(error instanceof Error ? error.message : 'Login failed');
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogContent className="sm:max-w-[425px] bg-background p-6 rounded-lg z-50" aria-label="Login Form">
-        <div className="space-y-2">
-          <DialogTitle className="text-lg font-semibold">Sign In</DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            Sign in to access your personalized movie watchlist
-          </DialogDescription>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
-            <Input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
-              required
-              autoComplete="username"
-              ref={usernameInputRef}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-              autoComplete="current-password"
-            />
-          </div>
-          {error && <p className="text-destructive text-sm">{error}</p>}
-          <div className="flex justify-end space-x-2">
-            <Button type="submit">Sign In</Button>
-            <Button variant="outline" onClick={onSwitchToRegister}>
-              Create Account
-            </Button>
-            <Button variant="outline" onClick={onForgotPassword}>
-              Forgot Password
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="username">Username</Label>
+        <Input
+          id="username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          ref={usernameInputRef}
+          disabled={isLoading}
+          required
+          autoComplete="username"
+        />
+      </div>
+      <div>
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={isLoading}
+          required
+          autoComplete="current-password"
+        />
+      </div>
+      <div className="flex justify-between items-center">
+        <Button
+          type="button"
+          variant="link"
+          onClick={onForgotPassword}
+          disabled={isLoading}
+        >
+          Forgot Password?
+        </Button>
+        <Button
+          type="button"
+          variant="link"
+          onClick={onSwitchToRegister}
+          disabled={isLoading}
+        >
+          Register
+        </Button>
+      </div>
+      <div className="flex justify-end space-x-2">
+        <Button
+          type="submit"
+          disabled={isLoading}
+        >
+          {isLoading ? 'Signing In...' : 'Sign In'}
+        </Button>
+      </div>
+    </form>
   );
 }

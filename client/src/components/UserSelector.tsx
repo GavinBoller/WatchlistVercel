@@ -65,26 +65,12 @@ const UserSelector = ({ isMobile = false }: UserSelectorProps) => {
     }
   }, [user]);
 
+  // Only set logout state on explicit logout
   useEffect(() => {
-    try {
-      const localStorageFlag = localStorage.getItem('just_logged_out') === 'true';
-      const sessionStorageFlag = sessionStorage.getItem('just_logged_out') === 'true';
-      const globalFlag = typeof window !== 'undefined' && window.__loggedOut === true;
-      const justLoggedOut = localStorageFlag || sessionStorageFlag || globalFlag;
-      setHasRecentlyLoggedOut(justLoggedOut);
-
-      const isOnAuthPage =
-        window.location.pathname === '/auth' ||
-        window.location.href.includes('/login') ||
-        window.location.href.includes('/register');
-      if (isOnAuthPage) {
-        console.log('[UserSelector] On auth page, setting logged out state');
-        setHasRecentlyLoggedOut(true);
-        setCachedUser(null);
-      }
-    } catch (e) {
-      console.error('[UserSelector] Error checking logout flags:', e);
-    }
+    const localStorageFlag = localStorage.getItem('just_logged_out') === 'true';
+    const sessionStorageFlag = sessionStorage.getItem('just_logged_out') === 'true';
+    const globalFlag = typeof window !== 'undefined' && window.__loggedOut === true;
+    setHasRecentlyLoggedOut(localStorageFlag || sessionStorageFlag || globalFlag);
   }, []);
 
   const isAuthenticated = !!user && !!cachedUser && !hasRecentlyLoggedOut;

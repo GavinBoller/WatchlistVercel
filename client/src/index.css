@@ -2,15 +2,8 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 
-@font-face {
-  font-family: 'Lato';
-  src: local('Inter'), url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap') format('woff2');
-  font-weight: 400 700;
-  font-style: normal;
-}
-
 :root {
-  font-family: Inter, sans-serif !important;
+  font-family: 'Inter', sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: rgba(255, 255, 255, 0.87);
@@ -25,16 +18,13 @@
   user-select: none;
 }
 
-* {
-  font-family: Inter, sans-serif !important;
-}
-
 body {
   margin: 0;
   display: flex;
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  font-family: 'Inter', sans-serif;
 }
 
 h1 {
@@ -48,7 +38,7 @@ button {
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
-  font-family: Inter, sans-serif !important;
+  font-family: 'Inter', sans-serif;
   background-color: #1a1a1a;
   cursor: pointer;
   transition: border-color 0.25s;

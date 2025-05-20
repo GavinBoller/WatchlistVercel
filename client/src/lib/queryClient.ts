@@ -1,5 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { handleSessionExpiration, isSessionError } from './session-utils';
+import { sessionUtils } from './session-utils';
 import { getToken, setAuthHeader } from './jwtUtils';
 
 // Enhanced error handling with detailed error information and HTML response detection
@@ -29,7 +29,7 @@ async function throwIfResNotOk(res: Response) {
             const error = new Error(`${res.status}: Error parsing server response`);
             (error as any).status = res.status;
             (error as any).isJsonParseError = true;
-            (error as any).isServerError = res.status >= 500;
+            (error as any as any).isServerError = res.status >= 500;
             (error as any).isClientError = res.status >= 400 && res.status < 500;
             (error as any).responseText = textData;
             throw error;
@@ -194,13 +194,6 @@ export async function apiRequest(
         headerObj.set("Pragma", "no-cache");
         headerObj.set("Cache-Control", "no-cache, no-store, must-revalidate");
         
-        // Add JWT token for authentication
-        const token = getToken();
-        if (token) {
-          headerObj.set("Authorization", `Bearer ${token}`);
-          console.log('[API] Adding JWT token to request');
-        }
-        
         // Then add any custom headers
         Object.entries(headers).forEach(([key, value]) => {
           if (value !== undefined) {
@@ -227,14 +220,11 @@ export async function apiRequest(
             return res; // Return the response without throwing
           } else {
             // Handle unauthorized responses globally using our utility
-            // This approach ensures a consistent user experience
             console.log(`[API] Detected 401 Unauthorized response, handling with session utilities`);
             
-            // We'll let the error propagate but also trigger the session handler
-            // This is non-blocking so the error will still be thrown below
-            handleSessionExpiration('401', 'Your session has expired. Please log in again.');
+            sessionUtils.handleSessionExpiration('401', 'Your session has expired. Please log in again.');
             
-            // Continue to the error handling code below which will throw correctly
+            // Continue to throw the error
           }
         }
         
@@ -269,60 +259,19 @@ export async function apiRequest(
         return mockResponse;
       }
       
-      // Handle session expiration globally for a consistent user experience
-      // Only if this isn't a special endpoint that ignores auth errors
-      // Use enhanced error detection to differentiate between auth and network errors
-      const errorInfo = isSessionError(error);
+      // Handle session expiration for auth errors
+      const errorInfo = sessionUtils.isSessionError(error);
       
       if (!ignoreAuthErrors && (
         (error as any)?.status === 401 || 
         errorInfo.isAuthError
       )) {
         console.log('[API] Detected potential auth error:', errorInfo);
-        // Handle auth errors more gracefully - don't log out immediately
-        // Wait at least 2 seconds before considering it a real session error
-        setTimeout(async () => {
-          console.log('[API] Delayed JWT check after 401 error');
-          
-          // Get JWT token from localStorage
-          const token = getToken();
-          
-          if (!token) {
-            // No token, definitely logged out
-            handleSessionExpiration(
-              (error as any)?.status || 'auth_error',
-              "Please sign in to continue", // Simpler message
-              1000 // shorter redirect delay since we already waited
-            );
-            return;
-          }
-          
-          // Check JWT user endpoint directly with token in header
-          const headers = new Headers();
-          headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
-          headers.set("Pragma", "no-cache");
-          headers.set("Authorization", `Bearer ${token}`);
-          
-          const userData = await fetch('/api/jwt/user', {
-            headers: headers
-          }).then(res => {
-            if (res.ok) return res.json();
-            return null;
-          }).catch(err => null);
-          
-          // If JWT is valid, don't show error
-          if (userData) {
-            console.log('[API] JWT appears valid after direct check - ignoring auth error');
-            return;
-          }
-          
-          // JWT is invalid, handle session expiration
-          handleSessionExpiration(
-            (error as any)?.status || 'auth_error',
-            "Please sign in to continue", // Simpler message
-            1000 // shorter redirect delay since we already waited
-          );
-        }, 2000);
+        sessionUtils.handleSessionExpiration(
+          (error as any)?.status || 'auth_error',
+          "Please sign in to continue",
+          1000
+        );
       }
       
       // Don't retry client errors (4xx) or aborted requests
