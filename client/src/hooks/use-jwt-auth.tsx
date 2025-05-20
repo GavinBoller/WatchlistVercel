@@ -23,12 +23,21 @@ export function JwtAuthProvider({ children }: { children: React.ReactNode }) {
   const authQuery = useQuery<AuthResponse>({
     queryKey: ['auth'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:3000/api/auth/check', {
-        credentials: 'include',
-      });
-      return response.json();
+      try {
+        const response = await fetch('http://localhost:3000/api/auth/check', {
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          return { user: null, authenticated: false };
+        }
+        return response.json();
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        return { user: null, authenticated: false };
+      }
     },
     retry: false,
+    onSettled: () => setIsChecking(false),
   });
 
   const login = async (username: string, password: string) => {
@@ -60,11 +69,9 @@ export function JwtAuthProvider({ children }: { children: React.ReactNode }) {
     logout,
   };
 
-  if (isChecking && authQuery.isLoading) {
+  if (isChecking || authQuery.isLoading) {
     return <div>Loading...</div>;
   }
-
-  setTimeout(() => setIsChecking(false), 0);
 
   return <JwtAuthContext.Provider value={value}>{children}</JwtAuthContext.Provider>;
 }
