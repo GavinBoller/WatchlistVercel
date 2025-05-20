@@ -30,6 +30,9 @@ export interface Movie {
   voteAverage: number;
   backdropPath: string;
   genres: string;
+  runtime?: number;
+  numberOfSeasons?: number;
+  numberOfEpisodes?: number;
 }
 
 export interface WatchlistEntry {
