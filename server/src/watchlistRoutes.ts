@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import asyncHandler from 'express-async-handler';
 import { UserResponse } from '@shared/schema';
-import { getUserByUsername, createUser, getWatchlist, addToWatchlist } from '../db';
+import { getUserByUsername, createUser, getWatchlist, addToWatchlist } from './db';
 
 const router = Router();
 

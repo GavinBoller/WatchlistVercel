@@ -3,7 +3,7 @@
     "target": "es6",
     "module": "commonjs",
     "outDir": "./dist",
-    "rootDir": ".",
+    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -13,6 +13,6 @@
       "@shared/*": ["src/shared/*"]
     }
   },
-  "include": ["src/**/*", "*.ts"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
