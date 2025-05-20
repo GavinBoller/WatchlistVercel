@@ -34,13 +34,17 @@ export default function WatchlistEntry({ entry, onEdit, onDelete, onViewDetails 
     fetchDetails();
   }, [movie.tmdbId, movie.mediaType]);
 
+  const posterSrc = getImageUrl(movie.posterPath ?? undefined);
+
   return (
     <div className="flex items-center space-x-4 border-b py-4">
-      <img
-        src={getImageUrl(movie.posterPath ?? null)}
-        alt={movie.title}
-        className="w-20 h-30 rounded"
-      />
+      {posterSrc && (
+        <img
+          src={posterSrc}
+          alt={movie.title}
+          className="w-20 h-30 rounded"
+        />
+      )}
       <div className="flex-1">
         <h3>{movie.title}</h3>
         <p>{movie.overview}</p>

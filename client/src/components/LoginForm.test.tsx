@@ -1,26 +1,37 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import LoginForm from './LoginForm';
-import { useJwtAuth } from '@/hooks/use-jwt-auth';
+import { UserResponse } from '@shared/schema';
 
-jest.mock('@/hooks/use-jwt-auth');
+const mockLogin = jest.fn();
+const mockOnLoginSuccess = jest.fn();
+const mockOnSwitchToRegister = jest.fn();
+
+jest.mock('@/hooks/use-jwt-auth', () => ({
+  useJwtAuth: () => ({
+    login: mockLogin,
+  }),
+}));
 
 describe('LoginForm', () => {
-  const mockLogin = jest.fn();
-  const mockOnLoginSuccess = jest.fn();
-  const mockOnSwitchToRegister = jest.fn();
-
   beforeEach(() => {
-    (useJwtAuth as jest.Mock).mockReturnValue({
-      login: mockLogin,
-    });
+    global.fetch = jest.fn();
   });
 
-  test('renders login form and submits', async () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('renders login form and submits', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ user: { username: 'testuser' } as UserResponse }),
+    });
+
     render(
       <LoginForm
         onLoginSuccess={mockOnLoginSuccess}
         onSwitchToRegister={mockOnSwitchToRegister}
-      />
+      />,
     );
 
     fireEvent.change(screen.getByLabelText(/username/i), {
@@ -34,6 +45,7 @@ describe('LoginForm', () => {
 
     await waitFor(() => {
       expect(mockLogin).toHaveBeenCalledWith('testuser', 'password');
+      expect(mockOnLoginSuccess).toHaveBeenCalledWith({ username: 'testuser' });
     });
   });
 });

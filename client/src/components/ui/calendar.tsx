@@ -6,8 +6,8 @@ export default function Calendar(props: DayPickerProps) {
     <DayPicker
       {...props}
       components={{
-        IconLeft: () => <ChevronLeft className="h-4 w-4" />,
-        IconRight: () => <ChevronRight className="h-4 w-4" />,
+        IconPrev: () => <ChevronLeft className="h-4 w-4" />,
+        IconNext: () => <ChevronRight className="h-4 w-4" />,
       }}
     />
   );
