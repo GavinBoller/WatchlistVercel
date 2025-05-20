@@ -84,4 +84,22 @@ router.get('/api/movies/details/:id', asyncHandler(async (req: Request, res: Res
   res.json({ id: req.params.id }); // Mock details
 }));
 
+router.get('/api/tmdb/search', asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const { query } = req.query;
+  if (!query) {
+    res.json({ results: [] });
+    return;
+  }
+  // Mock TMDB search response
+  res.json({
+    results: [
+      {
+        id: 1,
+        title: `Mock Movie: ${query}`,
+        name: `Mock Movie: ${query}`,
+      },
+    ],
+  });
+}));
+
 export default router;

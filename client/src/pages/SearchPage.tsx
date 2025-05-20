@@ -6,7 +6,7 @@ import { TMDBMovie } from '@shared/schema';
 import AddToWatchlistModal from '@/components/AddToWatchlistModal';
 
 interface SearchPageProps {
-  movie: TMDBMovie;
+  movie?: TMDBMovie;
 }
 
 export function SearchPage({ movie }: SearchPageProps) {
@@ -17,6 +17,7 @@ export function SearchPage({ movie }: SearchPageProps) {
     queryKey: ['search', searchQuery],
     queryFn: async () => {
       const response = await fetch(`http://localhost:3000/api/tmdb/search?query=${searchQuery}`);
+      if (!response.ok) throw new Error('Search failed');
       return response.json();
     },
     enabled: !!searchQuery,
@@ -44,6 +45,7 @@ export function SearchPage({ movie }: SearchPageProps) {
           onAdd={() => setSelectedMovie(null)}
         />
       )}
+      {movie && <div>Selected Movie: {movie.title || movie.name}</div>}
     </div>
   );
 }
