@@ -18,7 +18,7 @@ export default function WatchlistEntry({ entry, onEdit, onDelete, onViewDetails 
   useEffect(() => {
     const fetchDetails = async () => {
       try {
-        const details = await getMovieDetails(movie.tmdbId.toString(), movie.mediaType);
+        const details = await getMovieDetails(movie.tmdbId, movie.mediaType);
         if (details.runtime) {
           setRuntime(formatRuntime(details.runtime));
         }
@@ -32,12 +32,12 @@ export default function WatchlistEntry({ entry, onEdit, onDelete, onViewDetails 
       }
     };
     fetchDetails();
-  }, [movie.tmdbId, movie.mediaType, movie.runtime, movie.numberOfSeasons, movie.numberOfEpisodes]);
+  }, [movie.tmdbId, movie.mediaType]);
 
   return (
     <div className="flex items-center space-x-4 border-b py-4">
       <img
-        src={getImageUrl(movie.posterPath)}
+        src={getImageUrl(movie.posterPath ?? null)}
         alt={movie.title}
         className="w-20 h-30 rounded"
       />
@@ -74,7 +74,7 @@ export default function WatchlistEntry({ entry, onEdit, onDelete, onViewDetails 
           <p>Platform ID: {platformId}</p>
         )}
         <a
-          href={getIMDbUrl(movie.tmdbId.toString()) as string}
+          href={getIMDbUrl(movie.tmdbId) as unknown as string}
           target="_blank"
           rel="noopener noreferrer"
         >

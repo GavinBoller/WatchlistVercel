@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { LoginForm } from '@/components/LoginForm';
-import { RegisterForm } from '@/components/RegisterForm';
+import LoginForm from '@/components/LoginForm';
+import RegisterForm from '@/components/RegisterForm';
 import { UserResponse } from '@shared/schema';
 import { useJwtAuth } from '@/hooks/use-jwt-auth';
 import { Navigate } from 'react-router-dom';
 
-export function AuthPage() {
+export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const { user, isAuthenticated } = useJwtAuth();
 

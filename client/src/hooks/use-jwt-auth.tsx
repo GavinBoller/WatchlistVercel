@@ -20,18 +20,15 @@ export function JwtAuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [isChecking, setIsChecking] = useState(true);
 
-  const authQuery = useQuery({
+  const authQuery = useQuery<AuthResponse>({
     queryKey: ['auth'],
     queryFn: async () => {
       const response = await fetch('http://localhost:3000/api/auth/check', {
         credentials: 'include',
       });
-      return response.json() as Promise<AuthResponse>;
+      return response.json();
     },
     retry: false,
-    onSettled: () => {
-      setIsChecking(false);
-    },
   });
 
   const login = async (username: string, password: string) => {
@@ -63,9 +60,11 @@ export function JwtAuthProvider({ children }: { children: React.ReactNode }) {
     logout,
   };
 
-  if (isChecking) {
+  if (isChecking && authQuery.isLoading) {
     return <div>Loading...</div>;
   }
+
+  setTimeout(() => setIsChecking(false), 0);
 
   return <JwtAuthContext.Provider value={value}>{children}</JwtAuthContext.Provider>;
 }

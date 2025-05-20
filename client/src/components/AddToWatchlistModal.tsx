@@ -34,10 +34,7 @@ export default function AddToWatchlistModal({
   const handleSubmit = () => {
     onAdd({
       tmdbId: movie.id,
-      tmdbMovie: {
-        ...movie,
-        genres: Array.isArray(movie.genre_ids) ? movie.genre_ids.join(',') : '',
-      },
+      tmdbMovie: movie,
       status,
       notes,
       platformId,
