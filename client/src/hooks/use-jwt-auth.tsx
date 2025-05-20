@@ -20,24 +20,27 @@ export function JwtAuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [isChecking, setIsChecking] = useState(true);
 
-  const authQuery = useQuery<AuthResponse>({
+  const authQuery = useQuery({
     queryKey: ['auth'],
-    queryFn: async () => {
+    queryFn: async (): Promise<AuthResponse> => {
       try {
         const response = await fetch('http://localhost:3000/api/auth/check', {
           credentials: 'include',
         });
         if (!response.ok) {
+          setIsChecking(false);
           return { user: null, authenticated: false };
         }
-        return response.json();
+        const data = await response.json();
+        setIsChecking(false);
+        return data;
       } catch (error) {
         console.error('Auth check failed:', error);
+        setIsChecking(false);
         return { user: null, authenticated: false };
       }
     },
     retry: false,
-    onSettled: () => setIsChecking(false),
   });
 
   const login = async (username: string, password: string) => {
