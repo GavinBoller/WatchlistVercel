@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthPage } from '@/pages/auth-page';
+import AuthPage from '@/pages/auth-page';
 import { SearchPage } from '@/pages/SearchPage';
-import { WatchlistPage } from '@/pages/WatchlistPage';
+import WatchlistPage from '@/pages/WatchlistPage';
 import { AdminDashboardPage } from '@/pages/AdminDashboardPage';
 import { ProtectedRoute } from '@/lib/ProtectedRoute';
 import { useJwtAuth } from '@/hooks/use-jwt-auth';

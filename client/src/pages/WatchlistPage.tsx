@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { WatchlistEntry } from '@/components/WatchlistEntry';
-import { TMDBMovie, WatchlistEntryWithMovie, Platform } from '@shared/schema';
+import WatchlistEntry from '@/components/WatchlistEntry';
+import { WatchlistEntryWithMovie } from '@shared/schema';
 
 export default function WatchlistPage() {
   const { data: watchlist } = useQuery<WatchlistEntryWithMovie[]>({

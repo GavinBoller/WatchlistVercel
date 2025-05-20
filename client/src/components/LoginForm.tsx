@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { UserResponse } from '../../shared/schema';
+import { UserResponse } from '@shared/schema';
 import { useJwtAuth } from '@/hooks/use-jwt-auth';
 
 interface LoginFormProps {
