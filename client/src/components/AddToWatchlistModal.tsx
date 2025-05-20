@@ -27,7 +27,7 @@ export default function AddToWatchlistModal({
   onClose,
   onAdd,
 }: AddToWatchlistModalProps) {
-  const [status, setStatus]  consttate<'toWatch' | 'watched'>('toWatch');
+  const [status, setStatus] = useState<'toWatch' | 'watched'>('toWatch');
   const [notes, setNotes] = useState('');
   const [platformId, setPlatformId] = useState<number | undefined>(undefined);
 
