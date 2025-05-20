@@ -14,23 +14,21 @@ interface JwtAuthContextType {
   logout: () => Promise<void>;
 }
 
-const JwtAuthContext = createContext<JwtAuthContextType | undefined>(undefined);
+export const JwtAuthContext = createContext<JwtAuthContextType | undefined>(undefined);
 
 export function JwtAuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [isChecking, setIsChecking] = useState(true);
 
-  const authQuery = useQuery<AuthResponse>({
+  const authQuery = useQuery({
     queryKey: ['auth'],
     queryFn: async () => {
       const response = await fetch('http://localhost:3000/api/auth/check', {
         credentials: 'include',
       });
-      return response.json();
+      return response.json() as Promise<AuthResponse>;
     },
-    onError: (error: Error) => {
-      console.error('Auth check failed:', error);
-    },
+    retry: false,
     onSettled: () => {
       setIsChecking(false);
     },
@@ -44,7 +42,7 @@ export function JwtAuthProvider({ children }: { children: React.ReactNode }) {
       credentials: 'include',
     });
     if (response.ok) {
-      queryClient.invalidateQueries(['auth']);
+      queryClient.invalidateQueries({ queryKey: ['auth'] });
     } else {
       throw new Error('Login failed');
     }
@@ -55,12 +53,12 @@ export function JwtAuthProvider({ children }: { children: React.ReactNode }) {
       method: 'POST',
       credentials: 'include',
     });
-    queryClient.invalidateQueries(['auth']);
+    queryClient.invalidateQueries({ queryKey: ['auth'] });
   };
 
   const value: JwtAuthContextType = {
-    user: authQuery.data?.user || null,
-    isAuthenticated: authQuery.data?.authenticated || false,
+    user: authQuery.data?.user ?? null,
+    isAuthenticated: authQuery.data?.authenticated ?? false,
     login,
     logout,
   };

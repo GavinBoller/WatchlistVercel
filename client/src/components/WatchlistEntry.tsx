@@ -37,7 +37,7 @@ export default function WatchlistEntry({ entry, onEdit, onDelete, onViewDetails 
   return (
     <div className="flex items-center space-x-4 border-b py-4">
       <img
-        src={getImageUrl(movie.posterPath ?? null)}
+        src={getImageUrl(movie.posterPath)}
         alt={movie.title}
         className="w-20 h-30 rounded"
       />
@@ -74,7 +74,7 @@ export default function WatchlistEntry({ entry, onEdit, onDelete, onViewDetails 
           <p>Platform ID: {platformId}</p>
         )}
         <a
-          href={getIMDbUrl(movie.tmdbId.toString())}
+          href={getIMDbUrl(movie.tmdbId.toString()) as string}
           target="_blank"
           rel="noopener noreferrer"
         >

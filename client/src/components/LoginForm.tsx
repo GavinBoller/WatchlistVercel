@@ -1,44 +1,33 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { toast } from 'sonner';
-import { useJwtAuth } from '../hooks/use-jwt-auth';
-import { UserResponse } from '@shared/schema';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { UserResponse } from '../../shared/schema';
+import { useJwtAuth } from '@/hooks/use-jwt-auth';
 
 interface LoginFormProps {
   onLoginSuccess: (user: UserResponse) => void;
   onSwitchToRegister: () => void;
-  onForgotPassword: () => void;
 }
 
-export function LoginForm({ onLoginSuccess, onSwitchToRegister, onForgotPassword }: LoginFormProps) {
+export default function LoginForm({ onLoginSuccess, onSwitchToRegister }: LoginFormProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const { login, isLoading } = useJwtAuth();
-  const usernameInputRef = useRef<HTMLInputElement>(null);
-
-  // Focus username input on mount
-  useEffect(() => {
-    if (usernameInputRef.current) {
-      usernameInputRef.current.focus();
-    }
-  }, []);
+  const { login } = useJwtAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[LoginForm] Submitting:', { username });
     try {
-      const response = await login({ username, password });
-      console.log('[LoginForm] Login response:', response);
-      if (response.user) {
-        onLoginSuccess(response.user);
+      await login(username, password);
+      const response = await fetch('http://localhost:3000/api/auth/check', {
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.user) {
+        onLoginSuccess(data.user);
       }
-      setUsername('');
-      setPassword('');
     } catch (error) {
-      console.error('[LoginForm] Login error:', error);
-      toast.error(error instanceof Error ? error.message : 'Login failed');
+      console.error('Login failed:', error);
     }
   };
 
@@ -50,10 +39,7 @@ export function LoginForm({ onLoginSuccess, onSwitchToRegister, onForgotPassword
           id="username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          ref={usernameInputRef}
-          disabled={isLoading}
           required
-          autoComplete="username"
         />
       </div>
       <div>
@@ -63,37 +49,13 @@ export function LoginForm({ onLoginSuccess, onSwitchToRegister, onForgotPassword
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          disabled={isLoading}
           required
-          autoComplete="current-password"
         />
       </div>
-      <div className="flex justify-between items-center">
-        <Button
-          type="button"
-          variant="link"
-          onClick={onForgotPassword}
-          disabled={isLoading}
-        >
-          Forgot Password?
-        </Button>
-        <Button
-          type="button"
-          variant="link"
-          onClick={onSwitchToRegister}
-          disabled={isLoading}
-        >
-          Register
-        </Button>
-      </div>
-      <div className="flex justify-end space-x-2">
-        <Button
-          type="submit"
-          disabled={isLoading}
-        >
-          {isLoading ? 'Signing In...' : 'Sign In'}
-        </Button>
-      </div>
+      <Button type="submit">Login</Button>
+      <Button variant="outline" onClick={onSwitchToRegister}>
+        Register
+      </Button>
     </form>
   );
 }

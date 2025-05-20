@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { toast } from 'sonner';
-import { useJwtAuth } from '../hooks/use-jwt-auth';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { UserResponse } from '@shared/schema';
 
 interface RegisterFormProps {
@@ -11,32 +9,26 @@ interface RegisterFormProps {
   onSwitchToLogin: () => void;
 }
 
-export function RegisterForm({ onRegisterSuccess, onSwitchToLogin }: RegisterFormProps) {
+export default function RegisterForm({ onRegisterSuccess, onSwitchToLogin }: RegisterFormProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const { register, isLoading } = useJwtAuth();
-  const usernameInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (usernameInputRef.current) {
-      usernameInputRef.current.focus();
-    }
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[RegisterForm] Submitting:', { username, displayName });
     try {
-      await register({ username, password, displayName });
-      console.log('[RegisterForm] Register success');
-      onRegisterSuccess({ id: 0, username, displayName, role: 'user' }); // Temporary user object
-      setUsername('');
-      setPassword('');
-      setDisplayName('');
+      const response = await fetch('http://localhost:3000/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, displayName }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.user) {
+        onRegisterSuccess(data.user);
+      }
     } catch (error) {
-      console.error('[RegisterForm] Register error:', error);
-      toast.error(error instanceof Error ? error.message : 'Registration failed');
+      console.error('Registration failed:', error);
     }
   };
 
@@ -48,11 +40,7 @@ export function RegisterForm({ onRegisterSuccess, onSwitchToLogin }: RegisterFor
           id="username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          ref={usernameInputRef}
-          disabled={isLoading}
           required
-          autoComplete="username"
-          placeholder="Enter your username"
         />
       </div>
       <div>
@@ -61,10 +49,7 @@ export function RegisterForm({ onRegisterSuccess, onSwitchToLogin }: RegisterFor
           id="displayName"
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
-          disabled={isLoading}
           required
-          autoComplete="name"
-          placeholder="Enter your display name"
         />
       </div>
       <div>
@@ -74,28 +59,13 @@ export function RegisterForm({ onRegisterSuccess, onSwitchToLogin }: RegisterFor
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          disabled={isLoading}
           required
-          autoComplete="new-password"
-          placeholder="Enter your password"
         />
       </div>
-      <div className="flex justify-end space-x-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onSwitchToLogin}
-          disabled={isLoading}
-        >
-          Back to Login
-        </Button>
-        <Button
-          type="submit"
-          disabled={isLoading}
-        >
-          {isLoading ? 'Registering...' : 'Register'}
-        </Button>
-      </div>
+      <Button type="submit">Register</Button>
+      <Button variant="outline" onClick={onSwitchToLogin}>
+        Login
+      </Button>
     </form>
   );
 }
