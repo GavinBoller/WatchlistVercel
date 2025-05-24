@@ -3,18 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#ffffff" />
-    <meta http-equiv="Content-Security-Policy" content="
-      default-src 'self';
-      style-src 'self' https://fonts.googleapis.com 'unsafe-inline';
-      font-src 'self' https://fonts.gstatic.com;
-      script-src 'self' 'unsafe-inline' 'unsafe-eval';
-      connect-src 'self' http://localhost:3000 ws://localhost:5173;
-      img-src 'self' data: https://image.tmdb.org;
-    ">
-    <link rel="icon" href="/favicon.ico" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" />
     <title>Watchlist</title>
+    <script>
+      console.log('index.html: HTML loaded');
+      window.onerror = function(msg, url, lineNo, columnNo, error) {
+        console.error('Global error:', msg, url, lineNo, columnNo, error);
+      };
+    </script>
   </head>
   <body>
     <div id="root"></div>

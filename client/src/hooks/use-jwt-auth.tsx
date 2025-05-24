@@ -10,6 +10,7 @@ interface JwtAuthContextType {
   user: UserResponse | null;
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
+  logout: () => void;
 }
 
 export const JwtAuthContext = createContext<JwtAuthContextType | undefined>(undefined);
@@ -49,10 +50,26 @@ export function JwtAuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const logout = async () => {
+    try {
+      console.log('Logging out...');
+      await fetch('http://localhost:3000/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      setUser(null);
+      setIsAuthenticated(false);
+    } catch (err) {
+      console.error('Logout error:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    }
+  };
+
   const value: JwtAuthContextType = {
     user,
     isAuthenticated,
     login,
+    logout,
   };
 
   if (error) {

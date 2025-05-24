@@ -1,0 +1,68 @@
+.
+├── backup
+│   ├── emergencyAuth.ts
+│   ├── emergencyLoginPage.ts
+│   ├── emergencyWatchlist.ts
+│   ├── jwtAuth.ts
+│   ├── jwtAuthRoutes.ts
+│   ├── jwtMiddleware.ts
+│   ├── storage.ts
+│   └── tokenRefresh.ts
+├── client
+│   ├── public
+│   │   └── icon-generator.js
+│   ├── src
+│   │   ├── api
+│   │   ├── components
+│   │   ├── hooks
+│   │   ├── lib
+│   │   ├── pages
+│   │   ├── App.tsx
+│   │   ├── index.css
+│   │   ├── main.tsx
+│   │   └── setupTests.ts
+│   ├── jest.config.js
+│   ├── postcss.config.js
+│   ├── tailwind.config.js
+│   └── vite.config.ts
+├── data
+│   └── movietrack.sqlite
+├── migrations
+│   └── meta
+├── public
+├── server
+│   ├── backup
+│   │   ├── authRoutes.ts
+│   │   ├── middleware.ts
+│   │   └── statusRoutes.ts
+│   ├── src
+│   │   ├── shared
+│   │   ├── types
+│   │   ├── db.ts
+│   │   ├── index.ts
+│   │   ├── watchlistRoutes.test.ts
+│   │   └── watchlistRoutes.ts
+│   ├── types
+│   │   ├── express-async-handler.d.ts
+│   │   ├── express-session.d.ts
+│   │   └── express.d.ts
+│   ├── auth.ts.bak
+│   ├── jest.config.js
+│   ├── routes.ts.bak
+│   └── schema.ts
+├── shared
+│   └── schema.js
+├── check.sh
+├── create-database-backup.sh
+├── deployment-verify.js
+├── drizzle.config.ts
+├── generate-icon.js
+├── icon-creator.jsx
+├── package.json.bak
+├── postcss.config.js
+├── restore-database-backup.sh
+├── tailwind.config.ts
+├── tailwind.config.ts.bak
+└── test-server.js
+
+21 directories, 45 files

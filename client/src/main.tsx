@@ -1,30 +1,23 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { JwtAuthProvider } from '@/hooks/use-jwt-auth';
+import { BrowserRouter } from 'react-router-dom';
 import App from './App';
-import './index.css';
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
-  state = { hasError: false };
+console.log('main.tsx: Script loaded');
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+try {
+  const rootElement = document.getElementById('root');
+  if (!rootElement) {
+    console.error('main.tsx: Root element not found');
+  } else {
+    ReactDOM.createRoot(rootElement).render(
+      <React.StrictMode>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </React.StrictMode>
+    );
   }
-
-  render() {
-    if (this.state.hasError) {
-      return <h1>Something went wrong. Please refresh the page.</h1>;
-    }
-    return this.props.children;
-  }
+} catch (error) {
+  console.error('main.tsx: Error during rendering:', error);
 }
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <JwtAuthProvider>
-        <App />
-      </JwtAuthProvider>
-    </ErrorBoundary>
-  </React.StrictMode>,
-);

@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import session from 'express-session';
 import asyncHandler from 'express-async-handler';
 import { UserResponse } from '@shared/schema';
 import { getUserByUsername, createUser, getWatchlist, addToWatchlist } from './db';
@@ -6,8 +7,9 @@ import { getUserByUsername, createUser, getWatchlist, addToWatchlist } from './d
 const router = Router();
 
 router.get('/api/auth/status', asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  if (req.session.user) {
-    res.json({ authenticated: true, user: req.session.user });
+  const session = req.session as session.Session & { user?: UserResponse };
+  if (session.user) {
+    res.json({ authenticated: true, user: session.user });
   } else {
     res.json({ authenticated: false, user: null });
   }
@@ -17,7 +19,7 @@ router.post('/api/auth/login', asyncHandler(async (req: Request, res: Response):
   const { username, password } = req.body;
   const user = await getUserByUsername(username);
   if (user && password === 'password') {
-    req.session.user = user;
+    (req.session as session.Session & { user?: UserResponse }).user = user;
     res.json({ authenticated: true, user });
   } else {
     res.status(401).json({ error: 'Invalid credentials' });
@@ -32,16 +34,23 @@ router.post('/api/auth/register', asyncHandler(async (req: Request, res: Respons
     return;
   }
   const user = await createUser({ username, password, displayName });
-  req.session.user = user;
+  (req.session as session.Session & { user?: UserResponse }).user = user;
   res.status(201).json({ authenticated: true, user });
 }));
 
+router.post('/api/auth/logout', asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  req.session.destroy(() => {
+    res.json({ success: true });
+  });
+}));
+
 const authMiddleware = asyncHandler(async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  if (!req.session.user) {
+  const session = req.session as session.Session & { user?: UserResponse };
+  if (!session.user) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
-  (req as any).user = req.session.user;
+  (req as any).user = session.user;
   next();
 });
 
@@ -50,21 +59,23 @@ router.get('/api/auth/platforms', authMiddleware, asyncHandler(async (_req: Requ
 }));
 
 router.get('/api/auth/watchlist', authMiddleware, asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  if (!req.session.user) {
+  const session = req.session as session.Session & { user?: UserResponse };
+  if (!session.user) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
-  const watchlist = await getWatchlist(req.session.user.id);
+  const watchlist = await getWatchlist(session.user.id);
   res.json(watchlist);
 }));
 
 router.post('/api/auth/watchlist', authMiddleware, asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  if (!req.session.user) {
+  const session = req.session as session.Session & { user?: UserResponse };
+  if (!session.user) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
   const { tmdbId } = req.body;
-  const entry = await addToWatchlist(req.session.user.id, tmdbId);
+  const entry = await addToWatchlist(session.user.id, tmdbId);
   res.status(201).json(entry);
 }));
 

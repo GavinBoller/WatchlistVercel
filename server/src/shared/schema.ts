@@ -2,16 +2,16 @@ export interface UserResponse {
   id: number;
   username: string;
   displayName: string;
-  role: string;
-  createdAt: string;
+  role?: string; // Made optional for client compatibility
+  createdAt?: string; // Made optional
 }
 
 export interface User {
   id: number;
   username: string;
   displayName: string;
-  role: string;
-  createdAt: string;
+  role?: string; // Made optional
+  createdAt?: string; // Made optional
 }
 
 export interface InsertUser {

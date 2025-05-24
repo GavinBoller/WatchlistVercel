@@ -1,4 +1,4 @@
-import { User } from '../src/db';
+import { User } from '../db';
 
 declare module 'express-session' {
   interface SessionData {
